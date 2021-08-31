@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<configuration>
+<!--
+Common (default) XML platform configuration file for AMD
+-->
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Integrated devices                   -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <pci>
+    <device name="HOSTCTRL" bus="0" dev="0x00" fun="0" vid="0x1022" />
+    <device name="SMBUS"    bus="0" dev="0x14" fun="0" vid="0x8086" />
+    <device name="LPC"      bus="0" dev="0x14" fun="3" vid="0x8086" />
+    <device name="PCIE1"    bus="0" dev="0x18" fun="0" vid="0x8086" />
+    <device name="PCIE2"    bus="0" dev="0x18" fun="1" vid="0x8086" />
+    <device name="PCIE3"    bus="0" dev="0x18" fun="2" vid="0x8086" />
+    <device name="PCIE4"    bus="0" dev="0x18" fun="3" vid="0x8086" />
+    <device name="PCIE5"    bus="0" dev="0x18" fun="4" vid="0x8086" />
+    <device name="PCIE6"    bus="0" dev="0x18" fun="5" vid="0x8086" />
+    <device name="PCIE7"    bus="0" dev="0x18" fun="6" vid="0x8086" />
+    <device name="PCIE8"    bus="0" dev="0x18" fun="7" vid="0x8086" />
+    <device name="GBE"      bus="1" dev="0x00" fun="0" vid="0x8086" />
+    <device name="AUDIO"    bus="5" dev="0x00" fun="1" vid="0x8086" />
+    <device name="HDAUDIO"    bus="5" dev="0x00" fun="6" vid="0x8086" />
+  </pci>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Memory Mapped I/O spaces (MMIO BARs) -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <mmio>
+    <bar name="SPIBAR"   bus="0" dev="0x14" fun="3" reg="0xA0" width="4" mask="0xFFFFFF00"   size="0xFF"   desc="SPI Controller Register Range" />
+  </mmio>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- I/O spaces (I/O BARs)                -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <io>
+  </io>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Memory ranges                        -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <memory>
+  </memory>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Configuration registers              -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <registers>
+    <!-- register name="[UNIQUE REGISTER NAME]" type="msr|mmio|io|iobar|pcicfg|mmcfg|msgbus|memory" desc="[REGISTER DESCRIPTION]" lockedby="[LOCK NAME]" /-->
+
+    <!-- SPI Flash Controller -->
+    <!-- TODO: use AMD-specific names -->
+    <register name="BFPR" type="pcicfg" device="LPC" offset="0x68" size="4" desc="ROM Address Range 1">
+      <field name="PRB"  bit="0" size="16" desc="ROM Start Address 1"/>
+      <field name="PRL"  bit="16"  size="16" desc="ROM End Address 1"/>
+    </register>
+    <register name="FREG1_BIOS" type="pcicfg" device="LPC" offset="0x6C" size="4" desc="ROM Address Range 2">
+      <field name="RB"  bit="0" size="16" desc="ROM Start Address 2"/>
+      <field name="RL"  bit="16"  size="16" desc="ROM End Address 2"/>
+    </register>
+    <register name="HSFC" type="mmio" bar="SPIBAR" offset="0x00" size="4" desc="Hardware Sequencing Flash Control Register">
+      <field name="SPIBUSY"    bit="31"  size="1" desc="SPI Busy"/>
+    </register>
+  </registers>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Controls                             -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <controls>
+    <!--control name="[UNIQUE CONTROL NAME]" register="[REGISTER NAME WITH THIS CONTROL]" field="[CONTROL FIELD NAME WITHIN REGISTER]" desc="[CONTROL DESCRIPTION]" /-->
+  </controls>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Locks                                -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <locks>
+    <!--lock name="[UNIQUE LOCK NAME]" register="[REGISTER NAME WITH THIS LOCK]" field="[LOCK FIELD NAME WITHIN REGISTER]" value="[VALUE TO INDICATE LOCK IS SET]" desc="[LOCK DESCRIPTION]" /-->
+  </locks>
+
+</configuration>
