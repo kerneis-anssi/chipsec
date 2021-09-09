@@ -79,6 +79,23 @@
   <xs:attributeGroup ref="iobar_attr"/>
 </xs:complexType>
 
+<!-- SMN -->
+<xs:complexType name="smn_type">
+  <xs:sequence>
+     <xs:element name="bar" type="smnbar_type" minOccurs="0" maxOccurs="unbounded"/>
+  </xs:sequence>
+</xs:complexType>
+
+<xs:attributeGroup name="smnbar_attr">
+  <xs:attribute name="name" type="xs:string" use="required"/>
+  <xs:attribute name="desc" type="xs:string" use="optional"/>
+  <xs:attribute name="fixed_address" type="xs:string" use="optional"/>
+</xs:attributeGroup>
+
+<xs:complexType name="smnbar_type">
+  <xs:attributeGroup ref="smnbar_attr"/>
+</xs:complexType>
+
 <!-- MEMORY -->
 <xs:complexType name="memory_type">
   <xs:sequence>
@@ -121,6 +138,7 @@
     <xs:enumeration value="mmcfg" />
     <xs:enumeration value="msgbus" />
     <xs:enumeration value="mm_msgbus" />
+    <xs:enumeration value="smn" />
   </xs:restriction>
 </xs:simpleType>
 
