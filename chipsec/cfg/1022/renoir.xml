@@ -177,11 +177,66 @@ Reference: PPR for AMD Family 17h Model 18h B1. 55570-B1 Rev 3.16 - Apr 14, 2021
     <!-- TODO: add other IOMMUIO registers if necessary. -->
 
     <!-- 9.2.9.3.2 SPI registers -->
-    <register name="SPICntrl0" type="mmio" bar="SPIBAR" offset="0x00" size="4" desc="Hardware Sequencing Flash Control Register">
-      <field name="SpiBusy"    bit="31"  size="1" desc="SPI Busy"/>
-      <!-- more fields ... -->
+    <register name="SPI_Cntrl0" type="mmio" bar="SPIBAR" offset="0x00" size="4" desc="SPI_Cntrl0 Register">
+      <field name="SPI_OpCode"         bit="0"  size="8" desc="When software uses the alternate program method to communicate with the SPI ROM, this register contains the OPCODE"/>
+      <field name="TxByteCount"        bit="8"  size="4" desc="Number of bytes to be sent to SPI ROM"/>
+      <field name="RxByteCount"        bit="12" size="4" desc="Number of bytes to be received from the SPI ROM"/>
+      <field name="ExecuteOpCode"      bit="16" size="1" desc="Write 1 to execute the transaction in the alternate program registers. Write 0 has no effect. When the transaction is complete, this bit will return 0. If the command is an illegal command, the bit cannot be set and thereby cannot execute"/>
+      <field name="Reserved"           bit="17" size="2" desc=""/>
+      <field name="SpiArbEnable"       bit="19" size="1" desc="If a MAC is sharing the ROM with the SB, both chips will need to go through an arbitration process before either one can
+access the ROM. This bit enables the arbitration. If MAC is not sharing the SPI ROM, BIOS should set this bit to 0 to speed up the SPI ROM access"/>
+      <field name="FifoPtrClr"         bit="20" size="1" desc="(write only) A write of 1 to this bit will clear the internal FIFO pointer"/>
+      <field name="FifoPtrInc"         bit="21" size="1" desc="(write only ) A write of 1 to this bit will cause the internal FIFO pointer to be incremented by 1"/>
+      <field name="SpiAccessMacRomEn"  bit="22" size="1" desc="This is a clear-once protection bit; once set, software cannot access MAC’s portion of the ROM space (lower 512KB)."/>
+      <field name="SpiHostAccessRomEn" bit="23" size="1" desc="This is a clear-once protection bit; once set, MAC cannot access BIOS ROM space (upper 512KB)"/>
+      <field name="ArbWaitCount"       bit="24" size="3" desc="Under ROM sharing mode (with the MAC) this defines the amount of wait time this controller will assert HOLD# before it should access the SPI ROM. This time is to allow the MAC to sample HOLD#."/>
+      <field name="SpiBridgeDisable"   bit="27" size="1" desc="Setting this bit will disable the SPI bridge mode (SB600 will act as a SPI-LPC bridge to the MAC)"/>
+      <field name="Reserved"           bit="28" size="4" desc=""/>
     </register>
-    <!-- TODO: add other SPI registers if necessary. -->
+    <register name="SPI_RestrictedCmd1" type="mmio" bar="SPIBAR" offset="0x04" size="4" desc="SPI_RestrictedCmd1 Register">
+      <field name="RestrictedCmd0" bit="0"  size="8" desc="This defines a restricted command issued by the MAC which will be checked by the SB600. If the opcode issued by the MAC matches with this register and the address space is in the BIOS space, this controller will simply ignore the command for the case of bridge mode. For peer mode, the SPI controller will jam the entire interface as an attempt to stop that transaction. Note either SpiAccessMacRomEn and/or SpiHostAccessRomEn bit is cleared, these registers become read only and cannot be changed any more."/>
+      <field name="RestrictedCmd1" bit="8"  size="8" desc="Same as RestrictedCmd0"/>
+      <field name="RestrictedCmd2" bit="16" size="8" desc="Same as RestrictedCmd0"/>
+      <field name="RestrictedCmd3" bit="24" size="8" desc="Same as RestrictedCmd0"/>
+    </register>
+    <register name="SPI_RestrictedCmd2" type="mmio" bar="SPIBAR" offset="0x08" size="4" desc="SPI_RestrictedCmd1 Register">
+      <field name="RestrictedCmd4"       bit="0"  size="8" desc="Same as RestrictedCmd0"/>
+      <field name="RestrictedCmdWoAddr0" bit="8"  size="8" desc="Same as RestrictedCmd0 except this command does not have address"/>
+      <field name="RestrictedCmdWoAddr1" bit="16" size="8" desc="Same as RestrictedCmd0 except this command does not have address"/>
+      <field name="RestrictedCmdWoAddr2" bit="24" size="8" desc="Same as RestrictedCmd0 except this command does not have address"/>
+    </register>
+    <register name="SPI_Cntrl1" type="mmio" bar="SPIBAR" offset="0x0C" size="4" desc="SPI_Cntrl1 Register">
+      <field name="SPIParameters"   bit="0" size="8" desc="This is the TX/RX FIFO port which can take up to 8 bytes. To send data to SPI ROM, software writes data into this port. To retrieve data that are received from the SPI ROM, software reads from this port."/>
+      <field name="FifoPtr"         bit="8" size="3" desc="This three bits show the internal pointer location"/>
+      <field name="TrackMacLockEn"  bit="11" size="1" desc="When set, the controller will lock the SPI for the MAC when it has detected a command (from the MAC) matching the value defined in offset 10h or 11h. Conversely, it will unlock the bus when it has detected a command (from the MAC) matching the value defined in offset 12h or 13h"/>
+      <field name="NormSpeed"       bit="12" size="2" desc="This defines the clock speed for the non-fast read command. 00 – Reserved, 01 – 33Mhz, 10 – 22 Mhz, 11 – 16.5Mhz"/>
+      <field name="FastSpeed"       bit="14" size="2" desc="This defines the clock speed for the fast speed read. 00 – Reserved, 01 – 33Mhz, 10 – 22 Mhz, 11 – 16.5Mhz"/>
+      <field name="WaitClkInterval" bit="16" size="6" desc="Timing parameters used for SPI sharing protocol"/>
+      <field name="SetLockCmd"      bit="22" size="1" desc="Lock the SPI bus on the next transaction"/>
+      <field name="SetUnlockCmd"    bit="23" size="1" desc="Unlock the SPI bus on the next transaction"/>
+      <field name="ByteProgramCmd"  bit="24" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the BYTE PROGRAM command."/>
+    </register>
+    <register name="SPI_CmdValue0" type="mmio" bar="SPIBAR" offset="0x10" size="4" desc="SPI_CmdValue0 Register">
+      <field name="MacLockCmd0"   bit="0"  size="8" desc="This is used to compare against the opcode sent out by the MAC. If SPI_Cntrl1[11] is set, the controller will lock the SPI bus for the MAC. In other words, the MAC has the exclusive access to the ROM; access by the CPU will be delayed until this is unlocked. This is to allow the MAC to do certain sequence of operations without interruption."/>
+      <field name="MacLockCmd1"   bit="8"  size="8" desc="Same as MacLockCmd0"/>
+      <field name="MacUnlockCmd0" bit="16" size="8" desc="This is used to compare against the opcode sent out by the MAC. If SPI_Cntrl1[11] is set, the controller will unlock the SPI bus for the MAC. In other words, access by the CPU will be allowed again."/>
+      <field name="MacUnlockCmd1" bit="24" size="8" desc="Same as MacUnlockCmd0"/>
+    </register>
+    <register name="SPI_CmdValue1" type="mmio" bar="SPIBAR" offset="0x14" size="4" desc="SPI_CmdValue1 Register">
+      <field name="WREN" bit="0"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the WREN (write enable) command from the MAC. In the bridge mode, SB600 will need to decode commands from the MAC"/>
+      <field name="WRDI" bit="8"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the WRDI (write disable) command from the MAC."/>
+      <field name="RDID" bit="16" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the RDID (read ID) command from the MAC"/>
+      <field name="RDSR" bit="24" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the RDSR (read status register) command from the MAC"/>
+    </register>
+    <register name="SPI_CmdValue2" type="mmio" bar="SPIBAR" offset="0x18" size="4" desc="SPI_CmdValue2 Register">
+      <field name="Read"   bit="0"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the Read (Read byte) command from the MAC. In the bridge mode, SB600 will need to decode commands from the MAC"/>
+      <field name="FRead"  bit="8"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the FRead (fast read) command from the MAC."/>
+      <field name="PAGEWR" bit="16" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the PAGEWR (page write) command from the MAC"/>
+      <field name="BYTEWR" bit="24" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the BYTEWR (byte write) command from the MAC."/>
+    </register>
+    <register name="SPI_FakeID" type="mmio" bar="SPIBAR" offset="0x1C" size="1" desc="SPI_FakeID Register">
+      <field name="SPI_FakeID" bit="0" size="8" desc="This is used as the faked ID value to be returned to the MAC as a response to the RDID command. This is only used under the bridge mode."/>
+    </register>
 
     <!-- 9.2.9.4 eSPI registers -->
     <register name="DN_TXHDR_0th" type="mmio" bar="eSPIBAR" offset="0x00" size="4" desc="Hardware Sequencing Flash Control Register">
