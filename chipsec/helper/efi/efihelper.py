@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -47,8 +46,6 @@ from chipsec.logger import logger
 from chipsec.helper.oshelper import get_tools_path
 from chipsec.helper.basehelper import Helper
 
-class EfiHelperError (RuntimeError):
-    pass
 
 _tools = {
   chipsec.defines.COMPRESSION_TYPE_TIANO: 'TianoCompress.efi',

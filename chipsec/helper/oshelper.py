@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -31,6 +30,7 @@ import sys
 
 import chipsec.file
 from chipsec.logger import logger
+from chipsec.exceptions import UnimplementedAPIError, OsHelperError
 
 avail_helpers = []
 
@@ -40,21 +40,6 @@ def f_mod_zip(x):
 def map_modname_zip(x):
     return (x.rpartition('.')[0]).replace('/', '.')
 
-class OsHelperError (RuntimeError):
-    def __init__(self, msg, errorcode):
-        super(OsHelperError, self).__init__(msg)
-        self.errorcode = errorcode
-
-class HWAccessViolationError (OsHelperError):
-    pass
-
-class UnimplementedAPIError (OsHelperError):
-    def __init__(self, api_name):
-        super(UnimplementedAPIError, self).__init__("'{}' is not implemented".format(api_name), 0)
-
-class UnimplementedNativeAPIError (UnimplementedAPIError):
-    def __init__(self, api_name):
-        super(UnimplementedNativeAPIError, self).__init__(api_name)
 
 def get_tools_path():
     return os.path.normpath( os.path.join(chipsec.file.get_main_dir(), chipsec.file.TOOLS_DIR) )
@@ -74,6 +59,13 @@ class OsHelper:
             os_system  = platform.system()
             raise OsHelperError( "Could not load any helpers for '{}' environment (unsupported environment?)".format(os_system), errno.ENODEV )
         else:
+            if self.helper.name != "EfiHelper" and sys.version[0] == "2": # Python 2 is only supported in the EFI shell.
+                logger().warn("***************************************************************************************")
+                logger().warn("* !! Python 2 is deprecated. Please update to Python 3 !!")
+                logger().warn("* Some chipsec results may be incorrect if you continue.")
+                logger().warn("***************************************************************************************")
+                s = raw_input( "Type 'yes' to continue running under Python 2 > " ) # Will only run on python 2, so raw_input will be defined.
+                if s.lower() not in ['yes', 'y']: sys.exit( 0 )
             self.os_system  = self.helper.os_system
             self.os_release = self.helper.os_release
             self.os_version = self.helper.os_version

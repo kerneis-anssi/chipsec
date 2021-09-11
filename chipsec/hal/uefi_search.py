@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -113,7 +112,7 @@ def check_rules( efi, rules, entry_name, _log, bLog=True ):
             if (type(efi) is EFI_SECTION and efi.parentGuid == rule['guid']) or \
                (efi.Guid == rule['guid']): match_result |= MATCH_GUID
         if (match_mask & MATCH_REGEXP) == MATCH_REGEXP:
-            m = re.compile(rule['regexp']).search( efi.Image )
+            m = re.compile(bytes(rule['regexp'], 'utf-8')).search( efi.Image )
             if m:
                 match_result |= MATCH_REGEXP
                 _str = m.group(0)

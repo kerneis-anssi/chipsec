@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -33,12 +32,9 @@ from collections import namedtuple
 from chipsec.logger import logger, print_buffer
 from chipsec.file import read_file
 from chipsec.defines import bytestostring
+from chipsec.exceptions import UnimplementedNativeAPIError
 
 from chipsec.hal import acpi_tables, hal_base, uefi
-from chipsec.helper import oshelper
-
-class AcpiRuntimeError (RuntimeError):
-    pass
 
 # ACPI Table Header Format
 ACPI_TABLE_HEADER_FORMAT = '=4sIBB6s8sI4sI'
@@ -400,7 +396,7 @@ class ACPI(hal_base.HALBase):
 
             self.get_table_list_from_SDT(sdt, is_xsdt)
             self.get_DSDT_from_FADT()
-        except oshelper.UnimplementedNativeAPIError:
+        except UnimplementedNativeAPIError:
             # 2. If didn't work, try using get_ACPI_table if a helper implemented
             #    reading ACPI tables via native API which some OS may provide
             if logger().HAL: logger().log( "[acpi] trying to enumerate ACPI tables using get_ACPI_table..." )
@@ -484,7 +480,7 @@ class ACPI(hal_base.HALBase):
                     t_size = self.cs.mem.read_physical_mem_dword( table_address + 4 )
                     t_data = self.cs.mem.read_physical_mem( table_address, t_size )
                     acpi_tables_data.append( t_data )
-            except oshelper.UnimplementedNativeAPIError:
+            except UnimplementedNativeAPIError:
                 # 2. If didn't work, try using get_ACPI_table if a helper implemented
                 #    reading ACPI tables via native API which some OS may provide
                 if logger().HAL: logger().log( "[acpi] trying to extract ACPI table using get_ACPI_table..." )

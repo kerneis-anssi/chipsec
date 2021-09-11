@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2018-2019, Intel Corporation
+#Copyright (c) 2018-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -27,7 +26,7 @@ from sys import version
 
 import chipsec.file
 from chipsec.logger import logger
-from chipsec.helper.oshelper import OsHelperError, UnimplementedAPIError
+from chipsec.exceptions import OsHelperError, UnimplementedAPIError
 from chipsec.helper.basehelper import Helper
 from chipsec.defines import bytestostring
 

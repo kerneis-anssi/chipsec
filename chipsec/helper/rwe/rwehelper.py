@@ -1,5 +1,5 @@
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -42,7 +42,8 @@ import winerror
 from win32file import FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_OVERLAPPED, INVALID_HANDLE_VALUE
 import win32api, win32process, win32security, win32file, win32serviceutil
 
-from chipsec.helper.oshelper import OsHelperError, HWAccessViolationError, UnimplementedAPIError, UnimplementedNativeAPIError, get_tools_path
+from chipsec.helper.oshelper import get_tools_path
+from chipsec.exceptions import OsHelperError, HWAccessViolationError, UnimplementedAPIError, UnimplementedNativeAPIError
 from chipsec.helper.basehelper import Helper
 from chipsec.logger import logger, print_buffer
 import chipsec.file

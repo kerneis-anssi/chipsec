@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -27,6 +26,7 @@ Command-line utility providing access to IOMMU engines
 from chipsec.command import BaseCommand
 from chipsec.hal     import acpi, iommu
 from argparse        import ArgumentParser
+from chipsec.exceptions import IOMMUError, AcpiRuntimeError
 import time
 
 
@@ -85,7 +85,7 @@ class IOMMUCommand(BaseCommand):
     def iommu_engine(self, cmd):
         try:
             _iommu = iommu.IOMMU(self.cs)
-        except iommu.IOMMUError as msg:
+        except IOMMUError as msg:
             print (msg)
             return
 
@@ -101,7 +101,7 @@ class IOMMUCommand(BaseCommand):
         if 'config' == cmd:
             try:
                 _acpi = acpi.ACPI( self.cs )
-            except acpi.AcpiRuntimeError as msg:
+            except AcpiRuntimeError as msg:
                 print (msg)
                 return
 

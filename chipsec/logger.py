@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
 #Copyright (c) 2010-2021, Intel Corporation
 #
@@ -132,9 +131,6 @@ class ColorLogger( pyLogging.Formatter ):
     else:
         def log_color( self, message, record ):
             return message
-
-class LoggerError (RuntimeWarning):
-    pass
 
 class Logger:
 

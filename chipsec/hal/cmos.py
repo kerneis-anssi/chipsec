@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -42,11 +41,6 @@ usage:
 
 from chipsec.hal import hal_base
 import chipsec.logger
-
-class CmosRuntimeError (RuntimeError):
-    pass
-class CmosAccessError (RuntimeError):
-    pass
 
 CMOS_ADDR_PORT_LOW  = 0x70
 CMOS_DATA_PORT_LOW  = 0x71

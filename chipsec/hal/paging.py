@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -28,6 +27,7 @@ import struct
 
 import chipsec.defines
 from chipsec.logger import logger
+from chipsec.exceptions import InvalidMemoryAddress
 
 ADDR_MASK  = chipsec.defines.MASK_64b
 MAXPHYADDR = 0x000FFFFFFFFFF000
@@ -38,9 +38,6 @@ SIZE_1GB   = chipsec.defines.BOUNDARY_1GB
 ADDR_4KB   = 0xFFFFFFFFFFFFF000 & MAXPHYADDR
 ADDR_2MB   = 0xFFFFFFFFFFE00000 & MAXPHYADDR
 ADDR_1GB   = 0xFFFFFFFFC0000000 & MAXPHYADDR
-
-class InvalidMemoryAddress (RuntimeError):
-    pass
 
 
 class c_translation(object):

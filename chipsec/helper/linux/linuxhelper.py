@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
 #Copyright (c) 2010-2021, Intel Corporation
 #
@@ -38,7 +37,8 @@ import sys
 import shutil
 
 from chipsec import defines
-from chipsec.helper.oshelper import OsHelperError, HWAccessViolationError, UnimplementedAPIError, UnimplementedNativeAPIError, get_tools_path
+from chipsec.helper.oshelper import get_tools_path
+from chipsec.exceptions import OsHelperError, UnimplementedAPIError, UnimplementedNativeAPIError
 from chipsec.helper.basehelper import Helper
 from chipsec.logger import logger
 import chipsec.file

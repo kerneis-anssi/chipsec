@@ -1,6 +1,6 @@
 # !/usr/bin/python
 # CHIPSEC: Platform Security Assessment Framework
-# Copyright (c) 2010-2020, Intel Corporation
+# Copyright (c) 2010-2021, Intel Corporation
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -23,7 +23,8 @@ from time   import time
 from argparse   import ArgumentParser
 
 from chipsec.command    import BaseCommand
-from chipsec.hal.cmos   import CMOS, CmosRuntimeError
+from chipsec.hal.cmos   import CMOS
+from chipsec.exceptions import CmosRuntimeError
 
 
 class CMOSCommand(BaseCommand):

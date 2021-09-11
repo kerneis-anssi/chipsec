@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2019, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -29,7 +28,8 @@ from os.path import exists as path_exists
 from time import time
 from argparse import ArgumentParser
 
-from chipsec.hal.acpi   import ACPI, AcpiRuntimeError
+from chipsec.hal.acpi   import ACPI
+from chipsec.exceptions import AcpiRuntimeError
 from chipsec.command    import BaseCommand
 
 # ###################################################################

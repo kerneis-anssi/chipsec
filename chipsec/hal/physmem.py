@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -35,11 +34,6 @@ import sys
 from chipsec.hal.hal_base import HALBase
 from chipsec.logger import print_buffer
 
-class MemoryRuntimeError (RuntimeError):
-    pass
-
-class MemoryAccessError (RuntimeError):
-    pass
 
 class Memory(HALBase):
     def __init__( self, cs ):

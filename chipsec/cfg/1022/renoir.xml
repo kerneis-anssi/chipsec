@@ -2,6 +2,8 @@
 <configuration platform="Renoir">
 <!--
 XML configuration for Renoir based platforms
+
+Reference: PPR for AMD Family 17h Model 18h B1. 55570-B1 Rev 3.16 - Apr 14, 2021.
 -->
 
   <!-- #################################### -->
@@ -19,6 +21,50 @@ XML configuration for Renoir based platforms
   <!--                                      -->
   <!-- #################################### -->
   <pci>
+    <!-- Table 13: PCI Device ID Assignments. -->
+    <!-- Bus A and B are programmable. Here, we assume A = 5 and B = 1. -->
+    <device name="ROOT"           bus="0" dev="0x00"  fun="0" vid="0x1022" did="0x15D0" />
+    <device name="IOMMU"          bus="0" dev="0x00"  fun="2" vid="0x1022" did="0x15D1" />
+    <device name="HOSTDUMMY0"     bus="0" dev="0x01"  fun="0" vid="0x1022" did="0x1452" />
+    <!-- PCIe GPP Bridge -->
+    <device name="GPP0"           bus="0" dev="0x01"  fun="1" vid="0x1022" did="0x15D3" />
+    <device name="GPP1"           bus="0" dev="0x01"  fun="2" vid="0x1022" did="0x15D3" />
+    <device name="GPP2"           bus="0" dev="0x01"  fun="3" vid="0x1022" did="0x15D3" />
+    <device name="GPP3"           bus="0" dev="0x01"  fun="4" vid="0x1022" did="0x15D3" />
+    <device name="GPP4"           bus="0" dev="0x01"  fun="5" vid="0x1022" did="0x15D3" />
+    <device name="GPP5"           bus="0" dev="0x01"  fun="6" vid="0x1022" did="0x15D3" />
+    <device name="GPP6"           bus="0" dev="0x01"  fun="7" vid="0x1022" did="0x15D3" />
+    <device name="HOSTDUMMY1"     bus="0" dev="0x08"  fun="0" vid="0x1022" did="0x1452" />
+    <device name="GPP0TOBUSA"     bus="0" dev="0x08"  fun="1" vid="0x1022" did="0x15DB" />
+    <device name="GPP0TOBUSB"     bus="0" dev="0x08"  fun="2" vid="0x1022" did="0x15DC" />
+    <!-- Note: Vendor ID 1002h is used for Internal GPU and Display HD Audio Controller. -->
+    <!-- Model 18h: did=0x15D8. Models 10h, 11h: did=0x15DD -->
+    <device name="GPU"            bus="5" dev="0x00"  fun="0" vid="0x1002" did="0x15D8,0x15DD" />
+    <device name="DISPLAYHDAUDIO" bus="5" dev="0x00"  fun="1" vid="0x1002" did="0x15DE" />
+    <device name="USB0"           bus="5" dev="0x00"  fun="3" vid="0x1022" did="0x15E0" />
+    <device name="USB1"           bus="5" dev="0x00"  fun="4" vid="0x1022" did="0x15E1" />
+    <device name="AUDIO"          bus="5" dev="0x00"  fun="5" vid="0x1022" did="0x15E2" />
+    <device name="HDAUDIO"        bus="5" dev="0x00"  fun="6" vid="0x1022" did="0x15E3" />
+    <!-- Data Fabric devices -->
+    <device name="DF0"            bus="0" dev="0x18" fun="0" vid="0x1022" did="0x15E8" />
+    <device name="DF1"            bus="0" dev="0x18" fun="1" vid="0x1022" did="0x15E9" />
+    <device name="DF2"            bus="0" dev="0x18" fun="2" vid="0x1022" did="0x15EA" />
+    <device name="DF3"            bus="0" dev="0x18" fun="3" vid="0x1022" did="0x15EB" />
+    <device name="DF4"            bus="0" dev="0x18" fun="4" vid="0x1022" did="0x15EC" />
+    <device name="DF5"            bus="0" dev="0x18" fun="5" vid="0x1022" did="0x15ED" />
+    <device name="DF6"            bus="0" dev="0x18" fun="6" vid="0x1022" did="0x15EE" />
+    <!-- Not documented, but exists according to illumos developpers -->
+    <device name="DF7"            bus="0" dev="0x18" fun="7" vid="0x1022" did="0x15EF" />
+    <device name="SATAMS"         bus="1" dev="0x00"  fun="0" vid="0x1022" did="0x7901" />
+    <device name="SATAAMD"        bus="1" dev="0x00"  fun="0" vid="0x1022" did="0x7904" />
+    <device name="SD"             bus="0" dev="0x14" fun="6" vid="0x1022" did="0x7906" />
+    <device name="SMBUS"          bus="0" dev="0x14" fun="0" vid="0x1022" did="0x790B" />
+    <device name="LPC"            bus="0" dev="0x14" fun="3" vid="0x1022" did="0x790E" />
+    <device name="SATARAID0"      bus="1" dev="0x00"  fun="0" vid="0x1022" did="0x7916" />
+    <device name="SATARAID1"      bus="1" dev="0x00"  fun="0" vid="0x1022" did="0x7917" />
+    <device name="GBE0"           bus="1" dev="0x00"  fun="1" vid="0x1022" did="0x1458" />
+    <device name="GBE1"           bus="1" dev="0x00"  fun="2" vid="0x1022" did="0x1458" />
+    <device name="FUNCTIONDUMMY"  bus="1" dev="0x00"  fun="0" vid="0x1022" did="0x145A" />
   </pci>
 
   <!-- #################################### -->
@@ -27,6 +73,19 @@ XML configuration for Renoir based platforms
   <!--                                      -->
   <!-- #################################### -->
   <mmio>
+    <bar name="APIC_BAR" register="APIC_BAR" bus="0" base_field="ApicBar" size="0x1000" enable_field="ApicEn" desc="APIC Base Address"/>
+    <bar name="IOMMUBAR" register="IOMMU_CAP_BASE_LO" base_field="IOMMU_BASE_ADDR_LO" register_high="IOMMU_CAP_BASE_HI"  base_field_high="IOMMU_BASE_ADDR_HI" enable_field="IOMMU_ENABLE" desc="" />
+    <!-- The size of the MMIO configuration space is at least 1MB and depends on field BusRange. It is computed in mmio.py. -->
+    <bar name="MMCFG" register="MmioCfgBaseAddr" bus="0" base_field="MmioCfgBaseAddr" enable_field="Enable" desc="MMIO Base Address"/>
+
+    <!-- IOMMU section 8.1.2.3 defines a number of BARs which are not used
+    to access registers but MMIO data structures. Defining them here is
+    useful to simplify dumping the relevant parts of memory, even if they are
+    referenced in the <register> section. -->
+    <bar name="IOMMU_MMIO_DEVTBL_BASE" bus="0" register="IOMMU_MMIO_DEVTBL_BASE_0" base_field="DEV_TBL_BASE_LO" register_high="IOMMU_MMIO_DEVTBL_BASE_1" base_field_high="DEV_TBL_BASE_HI" desc="" />
+
+    <bar name="SPIBAR" register="SPIBaseAddr" base_field="Spi_eSpi_BaseAddr" enable_field="SpiRomEnable" size="0xFF"   desc="SPI Controller Register Range" fixed_address="0xFEC10000" />
+    <bar name="eSPIBAR" register="SPIBaseAddr" base_field="Spi_eSpi_BaseAddr" size="0xFF" fixed_address="0xFEC10000" offset="0x10000" desc="eSPI Controller Register Range" />
   </mmio>
 
   <!-- #################################### -->
@@ -36,6 +95,18 @@ XML configuration for Renoir based platforms
   <!-- #################################### -->
   <io>
   </io>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- SMN spaces (SMN BARs)                -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <smn>
+    <bar name="SMUTHM" fixed_address="0x00059800" />
+    <bar name="IOMMUL1INT0" fixed_address="0x14700000" desc="IOMMUL1 SMN Registers Base Address (PCIE0)" />
+    <bar name="IOMMUL1INT1" fixed_address="0x14800000" desc="IOMMUL1 SMN Registers Base Address (IOAGR)" />
+    <bar name="IOMMUL2A" fixed_address="0x15700000" desc="IOMMUL2 SMN Registers Base Address" />
+  </smn>
 
   <!-- #################################### -->
   <!--                                      -->
@@ -51,6 +122,157 @@ XML configuration for Renoir based platforms
   <!--                                      -->
   <!-- #################################### -->
   <registers>
+    <!-- PCIe Configuration (CFG) Registers -->
+
+    <!-- 8.1.2.2 IOMMUL2 Registers -->
+    <!-- Those registers are also accessible as SMN from BAR IOMMUCFG=0x13F00000 -->
+    <register name="IOMMU_VENDOR_ID" type="pcicfg" device="IOMMU" offset="0x0" size="4">
+      <field name="VENDOR_ID" bit="0" size="15" desc="Vendor Identifier." />
+    </register>
+    <register name="IOMMU_CAP_BASE_LO" type="pcicfg" device="IOMMU" offset="0x44" size="4">
+      <field name="IOMMU_BASE_ADDR_LO" bit="19" size="12" desc="Low bits of the 512KB-aligned base address of the IOMMU memory-mapped control registers" />
+      <field name="IOMMU_ENABLE" bit="0" size="1" desc="Enable IOMMU memory-mapped control registers" />
+    </register>
+    <register name="IOMMU_CAP_BASE_HI" type="pcicfg" device="IOMMU" offset="0x48" size="4">
+      <field name="IOMMU_BASE_ADDR_HI" bit="0" size="32" desc="High bits of the 512KB-aligned base address of the IOMMU memory-mapped control registers" />
+    </register>
+    <!-- TODO: add other IOMMUL2 registers if necessary. -->
+
+    <!-- 9.2.9.1 LPC Bridge Configuration Registers -->
+    <register name="ROMAddrRng1" type="pcicfg" device="LPC" offset="0x68" size="4" desc="ROM Address Range 1">
+      <field name="RomEndAddress1"  bit="16"  size="16" desc="ROM End Address 1"/>
+      <field name="RomStartAddress1"  bit="0" size="16" desc="ROM Start Address 1"/>
+    </register>
+    <register name="ROMAddrRng2" type="pcicfg" device="LPC" offset="0x6C" size="4" desc="ROM Address Range 2">
+      <field name="RomEndAddress2"  bit="16"  size="16" desc="ROM End Address 2"/>
+      <field name="RomStartAddress2"  bit="0" size="16" desc="ROM Start Address 2"/>
+    </register>
+    <register name="SPIBaseAddr" type="pcicfg" device="LPC" offset="0xA0" size="4" desc="SPI base address">
+      <field name="Spi_eSpi_BaseAddr"  bit="8" size="24" desc=""/>
+      <field name="PspSpiMmioSel"  bit="4" size="1" desc=""/>
+      <field name="RouteTpm2Spi"  bit="3" size="1" desc=""/>
+      <field name="AbortEnable"  bit="2" size="1" desc=""/>
+      <field name="SpiRomEnable"  bit="1" size="1" desc=""/>
+      <field name="AltSpiCSEnable"  bit="0" size="1" desc=""/>
+    </register>
+    <!-- TODO: add other LPC registers if necessary. -->
+
+    <!-- Memory-Mapped I/O (MMIO) Registers -->
+
+    <!-- 2.1.11.2.2 Local APIC Registers -->
+    <register name="ApicId" type="mmio" bar="APIC_BAR" offset="0x20" size="4" desc="APIC ID">
+      <field name="ApicId" bit="24" size="8" desc="APIC ID"/>
+    </register>
+    <!-- TODO: add other APIC registers if necessary. -->
+
+    <!-- 8.1.2.3 IOMMUMMIO Registers -->
+    <!-- Those registers are also accessible as SMN from BAR IOMMUMMIO=0x02400000 -->
+    <register name="IOMMU_MMIO_DEVTBL_BASE_0" type="mmio" bar="IOMMUBAR" offset="0x0" size="4" >
+      <field name="DEV_TBL_BASE_LO" bit="12" size="20" desc="Low bits of 4K byte-aligned base address of the first level device table"/>
+      <field name="DEV_TBL_SIZE" bit="0" size="9" desc="1 less than the length of the device table, in multiples of 4K bytes" />
+    </register>
+    <register name="IOMMU_MMIO_DEVTBL_BASE_1" type="mmio" bar="IOMMUBAR" offset="0x4" size="4" >
+      <field name="DEV_TBL_BASE_HI" bit="0" size="20" desc="High bits of 4K byte-aligned base address of the first level device table"/>
+    </register>
+    <!-- TODO: add other IOMMUIO registers if necessary. -->
+
+    <!-- 9.2.9.3.2 SPI registers -->
+    <register name="SPICntrl0" type="mmio" bar="SPIBAR" offset="0x00" size="4" desc="Hardware Sequencing Flash Control Register">
+      <field name="SpiBusy"    bit="31"  size="1" desc="SPI Busy"/>
+      <!-- more fields ... -->
+    </register>
+    <!-- TODO: add other SPI registers if necessary. -->
+
+    <!-- 9.2.9.4 eSPI registers -->
+    <register name="DN_TXHDR_0th" type="mmio" bar="eSPIBAR" offset="0x00" size="4" desc="Hardware Sequencing Flash Control Register">
+      <field name="DNCMD_HDATA2" bit="24"  size="8" desc=""/>
+      <!-- more fields  ... -->
+    </register>
+    <!-- TODO: add other SPI registers if necessary. -->
+
+    <!-- System Management Network (SMN) Registers -->
+
+    <!-- 4.2.1 Thermal Registers -->
+    <register name="THM_TCON_CUR_TMP" type="smn" bar="SMUTHM" device="DF0" offset="0x0">
+      <field name="CUR_TEMP" bit="21" size="11" />
+      <field name="CUR_TEMP_RANGE_SEL" bit="19" size="1" />
+    </register>
+
+    <!-- 8.1.2.1 IOMMUL1 Registers -->
+    <register name="L1_MISC_CNTRL_1_PCIE0" type="smn" bar="IOMMUL1INT0" device="DF0" offset="0x1C">
+      <field name="REG_enable_nw"  bit="17"  size="1" />
+      <field name="REG_force_invalid_filter"  bit="6"  size="1" />
+      <field name="REG_force_OrderStreamID_func"  bit="0"  size="1" />
+    </register>
+    <register name="L1_MISC_CNTRL_1_IOAGR" type="smn" bar="IOMMUL1INT1" device="DF0" offset="0x1C">
+      <field name="REG_enable_nw"  bit="17"  size="1" />
+      <field name="REG_force_invalid_filter"  bit="6"  size="1" />
+      <field name="REG_force_OrderStreamID_func"  bit="0"  size="1" />
+    </register>
+    <!-- TODO: add other IOMMUL1 registers if necessary. -->
+    <!-- 8.1.2.2 IOMMUL2 Registers -->
+    <register name="L2A_UPDATE_FILTER_CNTL" type="smn" bar="IOMMUL2A" device="DF0" offset="0x88">
+      <field name="L2a_Update_Filter_Bypass"  bit="0"  size="1" />
+    </register>
+    <!-- TODO: add other IOMMUL2 registers if necessary. -->
+
+
+    <!-- Port I/O Registers -->
+
+    <!-- 2.1.7 PCI Configuration Legacy Access -->
+    <register name="IoCfgAddr" type="io" port="0xCF8" size="4" desc="IO-Space Configuration Address">
+      <field name="ConfigEn" bit="31"  size="1"  desc="Configuration space enable"/>
+      <field name="ExtRegNo" bit="24"  size="4"  desc="Extended register number"/>
+      <field name="BusNo" bit="16"  size="8"  desc="Bus number"/>
+      <field name="Device" bit="11"  size="5"  desc="Device number"/>
+      <field name="Function" bit="8"  size="3"  desc="Function"/>
+      <field name="RegNo" bit="2"  size="6"  desc="Register address"/>
+    </register>
+    <register name="IoCfgData" type="io" port="0xCFC" size="4" desc="IO-Space Configuration Data Port">
+      <field name="Data" bit="0"  size="32"  desc="Data"/>
+    </register>
+
+    <!-- 9.2.1 Legacy Block Configuration Registers (IO): not included -->
+
+
+    <!-- CPU Model Specific Registers (MSR) -->
+
+    <!-- 2.1.13.1 MSRs - MSR0000_xxxx-->
+    <register name="TSC"  type="msr" msr="0x10" desc="Time Stamp Counter">
+      <field name="TSC" bit="0" size="64" desc="Time stamp counter" />
+    </register>
+    <register name="APIC_BAR" type="msr" msr="0x1B" desc="APIC Base Address">
+      <field name="ApicBar" bit="12" size="36" desc="APIC base address register" />
+      <field name="ApicEn" bit="11" size="1" desc="APIC enable" />
+      <field name="BSC" bit="8" size="1" desc="Boot strap core" />
+    </register>
+    <!-- TODO: add other MSR registers if necessary. -->
+    <!-- 2.1.13.2 MSRs - MSRC000_0xxx-->
+    <!-- 2.1.13.3 MSRs - MSRC001_0xxx-->
+    <register name="MmioCfgBaseAddr" type="msr" msr="0xC0010058" desc="MMIO Base Address">
+      <field name="MmioCfgBaseAddr" bit="20" size="28" desc="MMIO configuration base address" />
+      <field name="BusRange" bit="2" size="4" desc="Bus range identifier" />
+      <field name="Enable" bit="0" size="1" desc="Enable bit" />
+    </register>
+    <!-- 2.1.13.4 MSRs - MSRC001_1xxx-->
+    <!-- 3.2.5 MCA Banks -->
+
   </registers>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Controls                             -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <controls>
+  </controls>
+
+  <!-- #################################### -->
+  <!--                                      -->
+  <!-- Locks                                -->
+  <!--                                      -->
+  <!-- #################################### -->
+  <locks>
+  </locks>
 
 </configuration>

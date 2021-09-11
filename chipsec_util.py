@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #CHIPSEC: Platform Security Assessment Framework
 #Copyright (c) 2010-2021, Intel Corporation
 #
@@ -35,7 +35,7 @@ import platform
 from chipsec.defines import get_version, get_message
 from chipsec.helper import oshelper
 from chipsec.logger  import logger
-from chipsec.chipset import UnknownChipsetError
+from chipsec.exceptions import UnknownChipsetError
 from chipsec.testcase import ExitCode
 from chipsec.chipset import cs
 from chipsec.file import get_main_dir

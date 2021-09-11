@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # CHIPSEC: Platform Security Assessment Framework
 # Copyright (c) 2017, Google Inc
 # Copyright (c) 2010-2021, Intel Corporation
@@ -23,6 +22,7 @@
 from chipsec.command import BaseCommand
 from chipsec.hal     import tpm_eventlog
 from chipsec.hal     import tpm
+from chipsec.exceptions   import TpmRuntimeError
 from argparse        import ArgumentParser
 
 class TPMCommand(BaseCommand):
@@ -88,7 +88,7 @@ class TPMCommand(BaseCommand):
         if self.func != self.tpm_parse:
             try:
                 self._tpm = tpm.TPM(self.cs)
-            except tpm.TpmRuntimeError as msg:
+            except TpmRuntimeError as msg:
                 self.logger.log(msg)
                 return
 

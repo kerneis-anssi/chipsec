@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
 #Copyright (c) 2010-2021, Intel Corporation
 #
@@ -43,7 +42,7 @@ import winerror
 from win32file import FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_OVERLAPPED, INVALID_HANDLE_VALUE
 import win32api, win32process, win32security, win32file, win32serviceutil
 
-from chipsec.helper.oshelper import OsHelperError, HWAccessViolationError, UnimplementedAPIError, UnimplementedNativeAPIError
+from chipsec.exceptions import OsHelperError, HWAccessViolationError, UnimplementedAPIError, UnimplementedNativeAPIError
 from chipsec.helper.basehelper import Helper
 from chipsec.defines import stringtobytes, bytestostring
 from chipsec.logger import logger
@@ -232,7 +231,7 @@ def getEFIvariables_NtEnumerateSystemEnvironmentValuesEx2( nvram_buf ):
 def _handle_winerror(fn, msg, hr):
     _handle_error( ("{} failed: {} ({:d})".format(fn, msg, hr)), hr )
 def _handle_error( err, hr=0 ):
-    logger().error( err )
+    if logger().DEBUG: logger().error( err )
     raise OsHelperError( err, hr )
 
 class Win32Helper(Helper):
@@ -554,7 +553,8 @@ class Win32Helper(Helper):
     # @TODO: Temporarily the same as read_phys_mem for compatibility
     def read_mmio_reg( self, phys_address, size ):
         out_size = size
-        logger().log("size: {} addr: {}".format(size, phys_address))
+        if logger().DEBUG:
+            logger().log("[helper] -> read_mmio_reg( phys_address=0x{:X}, size={} )".format(phys_address, size))
         in_buf = struct.pack( '3I', (phys_address>>32)&0xFFFFFFFF, phys_address&0xFFFFFFFF, size )
         out_buf = self._ioctl( IOCTL_READ_MMIO, in_buf, out_size )
         if size == 8:

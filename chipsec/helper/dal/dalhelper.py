@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 # CHIPSEC: Platform Security Assessment Framework
-# Copyright (c) 2010-2020, Intel Corporation
+# Copyright (c) 2010-2021, Intel Corporation
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -33,11 +32,9 @@ from chipsec.logger import logger
 import itpii
 from ctypes import *
 from chipsec.helper.basehelper import Helper
+from chipsec.exceptions import DALHelperError
 
 SYSTEM_HALTED = True
-
-class DALHelperError (RuntimeError):
-    pass
 
 
 class DALHelper(Helper):

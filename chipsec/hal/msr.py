@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -54,9 +53,6 @@ MemType = {
     MTRR_MEMTYPE_WP: 'Write-protected (WP)',
     MTRR_MEMTYPE_WB: 'Writeback (WB)'
 }
-
-class MsrRuntimeError (RuntimeError):
-    pass
 
 class Msr:
 

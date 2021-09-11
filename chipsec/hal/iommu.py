@@ -1,6 +1,5 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
-#Copyright (c) 2010-2020, Intel Corporation
+#Copyright (c) 2010-2021, Intel Corporation
 #
 #This program is free software; you can redistribute it and/or
 #modify it under the terms of the GNU General Public License
@@ -27,6 +26,7 @@ Access to IOMMU engines
 """
 
 from chipsec.hal import hal_base, mmio, paging
+from chipsec.exceptions import IOMMUError
 
 IOMMU_ENGINE_DEFAULT = 'VTD'
 IOMMU_ENGINE_GFX     = 'GFXVTD'
@@ -37,9 +37,6 @@ IOMMU_ENGINES = {
   IOMMU_ENGINE_DEFAULT: 'VTBAR'
 }
 
-
-class IOMMUError (RuntimeError):
-    pass
 
 class IOMMU(hal_base.HALBase):
 

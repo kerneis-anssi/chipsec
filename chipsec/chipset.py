@@ -1,4 +1,3 @@
-#!/usr/bin/python
 #CHIPSEC: Platform Security Assessment Framework
 #Copyright (c) 2010-2021, Intel Corporation
 #
@@ -31,8 +30,10 @@ import re
 import xml.etree.ElementTree as ET
 
 from chipsec.helper.oshelper import OsHelper, OsHelperError
-from chipsec.hal import cpu, io, iobar, mmio, msgbus, msr, pci, physmem, ucode, igd
+from chipsec.hal import cpu, io, iobar, mmio, msgbus, msr, pci, physmem, smn, ucode, igd
 from chipsec.hal.pci import PCI_HDR_RID_OFF
+from chipsec.exceptions import UnknownChipsetError, DeviceNotFoundError, CSReadError
+from chipsec.exceptions import RegisterTypeNotFoundError
 
 from chipsec.logger import logger
 from chipsec.defines import is_hex
@@ -57,6 +58,7 @@ class RegisterType:
     MSGBUS    = 'msgbus'
     MM_MSGBUS = 'mm_msgbus'
     MEMORY    = 'memory'
+    SMN       = 'smn'
 
 class Cfg:
     def __init__(self):
@@ -64,16 +66,13 @@ class Cfg:
         self.REGISTERS     = {}
         self.MMIO_BARS     = {}
         self.IO_BARS       = {}
+        self.SMN_BARS      = {}
         self.MEMORY_RANGES = {}
         self.CONTROLS      = {}
         self.BUS           = {}
         self.LOCKS         = {}
         self.LOCKEDBY      = {}
         self.XML_CONFIG_LOADED = False
-
-class CSReadError(RuntimeError):
-    def __init__(self, msg):
-        super(CSReadError, self).__init__(msg)
 
 
 ##################################################################################
@@ -100,18 +99,6 @@ try:
 except ImportError:
     pass
 
-
-class UnknownChipsetError(RuntimeError):
-    pass
-
-class DeviceNotFoundError(RuntimeError):
-    pass
-
-class RegisterNotFoundError(RuntimeError):
-    pass
-
-class RegisterTypeNotFoundError(RuntimeError):
-    pass
 
 class Chipset:
 
@@ -151,6 +138,7 @@ class Chipset:
         self.mmio       = mmio.MMIO(self)
         self.iobar      = iobar.IOBAR(self)
         self.igd        = igd.IGD(self)
+        self.smn        = smn.SMN(self)
         #
         # All HAL components which use above 'basic primitive' HAL components
         # should be instantiated in modules/utilcmd with an instance of chipset
@@ -368,6 +356,10 @@ class Chipset:
     ##################################################################################
 
     def init_xml_configuration(self):
+        # CAVEAT: this method may be called before command-line flags have been
+        # parsed. In that case, logger().DEBUG will be False even if `-d` is
+        # used. Switch it to True in logger.py directly if you need to debug
+        # this function.
         self.pch_dictionary = dict()
         self.chipset_dictionary = dict()
         self.device_dictionary = dict()
@@ -545,6 +537,18 @@ class Chipset:
                             self.Cfg.IO_BARS.pop(_name, None)
                         continue
                     self.Cfg.IO_BARS[ _name ] = _bar.attrib
+                    if logger().DEBUG: logger().log( "    + {:16}: {}".format(_name, _bar.attrib) )
+            if logger().DEBUG: logger().log( "[*] loading SMN BARs.." )
+            for _io in _cfg.iter('smn'):
+                for _bar in _io.iter('bar'):
+                    _name = _bar.attrib['name']
+                    del _bar.attrib['name']
+                    if 'undef' in _bar.attrib:
+                        if _name in self.Cfg.SMN_BARS:
+                            if logger().DEBUG: logger().log("    - {:16}: {}".format(_name, _bar.attrib['undef']))
+                            self.Cfg.SMN_BARS.pop(_name, None)
+                        continue
+                    self.Cfg.SMN_BARS[ _name ] = _bar.attrib
                     if logger().DEBUG: logger().log( "    + {:16}: {}".format(_name, _bar.attrib) )
             if logger().DEBUG: logger().log( "[*] loading memory ranges.." )
             for _memory in _cfg.iter('memory'):
@@ -790,7 +794,7 @@ class Chipset:
         reg_def = self.Cfg.REGISTERS[reg_name]
         if "device" in reg_def:
             dev_name = reg_def["device"]
-            if reg_def["type"] == "pcicfg" or reg_def["type"] == "mmcfg":
+            if reg_def["type"] in ["pcicfg", "mmcfg", "smn"]:
                 if dev_name in self.Cfg.CONFIG_PCI:
                     dev = self.Cfg.CONFIG_PCI[dev_name]
                     reg_def['bus'] = dev['bus']
@@ -868,6 +872,13 @@ class Chipset:
                 reg_value= self.mem.read_physical_mem(int(reg['address'], 16), int(reg['size'], 16))
             elif reg['access'] == 'mmio':
                 reg_value = self.mmio.read_MMIO_reg(int(reg['address'], 16), int(reg['offset'], 16), int(reg['size'], 16))
+        elif RegisterType.SMN == rtype:
+            if self.smn.get_SMN_BAR_base_address(reg['bar']) != 0:
+                if bus is None:
+                    bus = self.smn.get_bus_from_cpu_thread(cpu_thread)
+                reg_value = self.smn.read_SMN_BAR_reg( reg['bar'], int(reg['offset'], 16), bus)
+            else:
+                raise CSReadError("SMN Bar ({}) base address is 0".format(reg['bar']))
         else:
             raise RegisterTypeNotFoundError("Register type not found: {}".format(rtype))
 
@@ -890,7 +901,7 @@ class Chipset:
                 threads_to_use = range(self.helper.get_threads_count())
             for t in threads_to_use:
                 values.append(self.read_register(reg_name, t))
-        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO]:
+        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO, RegisterType.SMN]:
             if bus_data:
                 for bus in bus_data:
                     values.append(self.read_register(reg_name, cpu_thread, bus))
@@ -940,6 +951,13 @@ class Chipset:
                 self.mem.write_physical_mem(int(reg['address'], 16), int(reg['size'], 16), reg_value)
             elif reg['access'] == 'mmio':
                 self.mmio.write_MMIO_reg(int(reg['address'], 16), int(reg['offset'], 16), reg_value, int(reg['size'], 16))
+        elif RegisterType.SMN == rtype:
+            if self.smn.get_SMN_BAR_base_address(reg['bar']) != 0:
+                if bus is None:
+                    bus = self.smn.get_bus_from_cpu_thread(cpu_thread)
+                reg_value = self.smn.write_SMN_BAR_reg( reg['bar'], int(reg['offset'], 16), reg_value, bus)
+            else:
+                raise CSReadError("SMN Bar ({}) base address is 0".format(reg['bar']))
         else:
             raise RegisterTypeNotFoundError("Register type not found: {}".format(rtype))
         return True
@@ -965,7 +983,7 @@ class Chipset:
                     self.write_register(reg_name, reg_values[value], t)
                     value += 1
                 ret = True
-        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO] and bus_data:
+        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO, RegisterType.SMN] and bus_data:
             values = len(bus_data)
             if len(reg_values) == values:
                 for index in range(values):
@@ -995,7 +1013,7 @@ class Chipset:
                 threads_to_use = range(self.helper.get_threads_count())
             for t in threads_to_use:
                 self.write_register(reg_name, reg_value, t)
-        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO] and bus_data:
+        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO, RegisterType.SMN] and bus_data:
             for bus in bus_data:
                 self.write_register(reg_name, reg_value, cpu_thread, bus)
         else:
@@ -1147,6 +1165,8 @@ class Chipset:
             reg_str = "[*] {} = {} << {} (I/O {} + 0x{:X})".format(reg_name, reg_val_str, reg['desc'], reg['bar'], int(reg['offset'], 16))
         elif RegisterType.MSGBUS == rtype or RegisterType.MM_MSGBUS == rtype:
             reg_str = "[*] {} = {} << {} (msgbus port 0x{:X}, off 0x{:X})".format(reg_name, reg_val_str, reg['desc'], int(reg['port'], 16), int(reg['offset'], 16))
+        elif RegisterType.SMN == rtype:
+            reg_str = "[*] {} = {} << {} (SMN {} + 0x{:X})".format(reg_name, reg_val_str, reg['desc'], reg['bar'], int(reg['offset'], 16))
         else:
             reg_str = "[*] {} = {} << {}".format(reg_name, reg_val_str, reg['desc'])
 
@@ -1172,11 +1192,10 @@ class Chipset:
             for t in threads_to_use:
                 reg_val = self.read_register(reg_name, t)
                 reg_str += self.print_register(reg_name, reg_val, cpu_thread=t)
-        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO]:
-            if bus_data:
-                for bus in bus_data:
-                    reg_val = self.read_register(reg_name, cpu_thread, bus)
-                    reg_str += self.print_register(reg_name, reg_val, bus)
+        elif rtype in [RegisterType.MMCFG, RegisterType.PCICFG, RegisterType.MMIO, RegisterType.SMN] and bus_data:
+            for bus in bus_data:
+                reg_val = self.read_register(reg_name, cpu_thread, bus)
+                reg_str += self.print_register(reg_name, reg_val, bus)
         else:
             reg_val = self.read_register(reg_name, cpu_thread)
             reg_str = self.print_register(reg_name, reg_val)
