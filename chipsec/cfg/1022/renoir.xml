@@ -85,7 +85,7 @@ Reference: PPR for AMD Family 17h Model 18h B1. 55570-B1 Rev 3.16 - Apr 14, 2021
     <bar name="IOMMU_MMIO_DEVTBL_BASE" bus="0" register="IOMMU_MMIO_DEVTBL_BASE_0" base_field="DEV_TBL_BASE_LO" register_high="IOMMU_MMIO_DEVTBL_BASE_1" base_field_high="DEV_TBL_BASE_HI" desc="" />
 
     <bar name="SPIBAR" register="SPIBaseAddr" base_field="Spi_eSpi_BaseAddr" enable_field="SpiRomEnable" size="0xFF"   desc="SPI Controller Register Range" fixed_address="0xFEC10000" />
-    <bar name="eSPIBAR" register="SPIBaseAddr" base_field="Spi_eSpi_BaseAddr" size="0xFF" fixed_address="0xFEC10000" offset="0x10000" desc="eSPI Controller Register Range" />
+    <bar name="ESPIBAR" register="SPIBaseAddr" base_field="Spi_eSpi_BaseAddr" size="0xFF" fixed_address="0xFEC10000" offset="0x10000" desc="eSPI Controller Register Range" />
   </mmio>
 
   <!-- #################################### -->
@@ -177,72 +177,444 @@ Reference: PPR for AMD Family 17h Model 18h B1. 55570-B1 Rev 3.16 - Apr 14, 2021
     <!-- TODO: add other IOMMUIO registers if necessary. -->
 
     <!-- 9.2.9.3.2 SPI registers -->
-    <register name="SPI_Cntrl0" type="mmio" bar="SPIBAR" offset="0x00" size="4" desc="SPI_Cntrl0 Register">
-      <field name="SPI_OpCode"         bit="0"  size="8" desc="When software uses the alternate program method to communicate with the SPI ROM, this register contains the OPCODE"/>
-      <field name="TxByteCount"        bit="8"  size="4" desc="Number of bytes to be sent to SPI ROM"/>
-      <field name="RxByteCount"        bit="12" size="4" desc="Number of bytes to be received from the SPI ROM"/>
-      <field name="ExecuteOpCode"      bit="16" size="1" desc="Write 1 to execute the transaction in the alternate program registers. Write 0 has no effect. When the transaction is complete, this bit will return 0. If the command is an illegal command, the bit cannot be set and thereby cannot execute"/>
-      <field name="Reserved"           bit="17" size="2" desc=""/>
-      <field name="SpiArbEnable"       bit="19" size="1" desc="If a MAC is sharing the ROM with the SB, both chips will need to go through an arbitration process before either one can
-access the ROM. This bit enables the arbitration. If MAC is not sharing the SPI ROM, BIOS should set this bit to 0 to speed up the SPI ROM access"/>
-      <field name="FifoPtrClr"         bit="20" size="1" desc="(write only) A write of 1 to this bit will clear the internal FIFO pointer"/>
-      <field name="FifoPtrInc"         bit="21" size="1" desc="(write only ) A write of 1 to this bit will cause the internal FIFO pointer to be incremented by 1"/>
-      <field name="SpiAccessMacRomEn"  bit="22" size="1" desc="This is a clear-once protection bit; once set, software cannot access MAC’s portion of the ROM space (lower 512KB)."/>
-      <field name="SpiHostAccessRomEn" bit="23" size="1" desc="This is a clear-once protection bit; once set, MAC cannot access BIOS ROM space (upper 512KB)"/>
-      <field name="ArbWaitCount"       bit="24" size="3" desc="Under ROM sharing mode (with the MAC) this defines the amount of wait time this controller will assert HOLD# before it should access the SPI ROM. This time is to allow the MAC to sample HOLD#."/>
-      <field name="SpiBridgeDisable"   bit="27" size="1" desc="Setting this bit will disable the SPI bridge mode (SB600 will act as a SPI-LPC bridge to the MAC)"/>
-      <field name="Reserved"           bit="28" size="4" desc=""/>
+    <register name="SPICntrl0" type="mmio" bar="SPIBAR" offset="0x0" size="4" desc="SPICntrl0 Register">
+      <field name="Reserved0" bit="0" size="18" desc="" />
+      <field name="SpiReadMode0" bit="18" size="1" desc="Read-write. Reset: 0. Bit[0] of SpiReadMode. See the definition of SpiReadMode[2:1] in this&#xA;register. SpiReadMode = {SpiReadMode[2:1],SpiReadMode[0]}." />
+      <field name="Reserved1" bit="19" size="2" desc="" />
+      <field name="IllegalAccess" bit="21" size="1" desc="Read-only. Reset: 0. 0=Legal index mode access. 1=Illegal index mode access." />
+      <field name="SpiAccessRomEn" bit="22" size="1" desc="Read,Write-0-only. Reset: 1. 0=Software cannot access MAC's portion of the ROM space&#xA;(lower 512 KB). 1=Software can access MAC's portion of the ROM space. This is a clear-once protection bit.&#xA;Once set, some SPI registers can't be written and discards a SPI request if it is an illegal request." />
+      <field name="SpiHostAccessRomEn" bit="23" size="1" desc="Read,Write-0-only. Reset: 1. 0=MAC cannot access BIOS ROM space (upper 512 KB).&#xA;1=MAC can access BIOS ROM space. This is a clear-once protection bit. Once set, some SPI registers can't be&#xA;written and discards a SPI request if it is an illegal request." />
+      <field name="ArbWaitCount" bit="24" size="3" desc="Read-write. Reset: 7h. Specifies the amount of wait time the SPI controller asserts HOLD#&#xA;before it should access the SPI ROM, under ROM sharing mode with the MAC. This time is to allow the MAC to&#xA;sample HOLD#." />
+      <field name="SpiBridgeDisable" bit="27" size="1" desc="Read-write. Reset: 1. Setting this bit disables the SPI bridge mode (SB acts as a SPI-LPC&#xA;bridge to the MAC)." />
+      <field name="SpiClkGate" bit="28" size="1" desc="Read-write. Reset: 0. 1=Skip the 8th SPI clock at the end data when doing read." />
+      <field name="SpiReadMode1" bit="29" size="2" desc="Read-write. Reset: 0h.&#xA;Description: See Table 78 [SpiReadMode[2:0]].&#xA;NOTE: SPI modes supported are listed below,&#xA;Old engine (spi_sie_org + spi_sie) support:&#xA;1. 1-1-1 AltOpCode (Index Mode) Read&#xA;2. 1-1-1 AltOpCode (Index Mode) Write&#xA;3. 1-1-1 Host Read to ROM (command value is 03)&#xA;4. 1-1-1 Host fast Read to ROM (command value is 0B)&#xA;5. 1-1-2 Host Read to ROM (command value is programmable)&#xA;6. 1-1-4 Host Read to ROM (command value is programmable)&#xA;7. 1-2-2 Host Read to ROM (command value is programmable)&#xA;8. 1-4-4 Host Read to ROM (command value is programmable)&#xA;9. 1-1-1 TPM Read&#xA;10. 1-1-1 TPM Write&#xA;11. All Writes except TPM-write should use AltOpCode (Index Mode).&#xA;12. Host read prefetch&#xA;13. TPM read prefetch&#xA;14. ROM copy (DMA)&#xA;15. SPI Clock speed 66/33/22/16 MHz&#xA;New engine (spi_sie_100) support:&#xA;All the features listed above, plus 100 MHz clock speed.&#xA;PS:&#xA;&quot;1-1-1&quot; means command, address and data are transmitted through 1 wire, 1 wire and 1 wire, respectively.&#xA;&quot;1-1-2&quot; means command, address and data are transmitted through 1 wire, 1 wire and 2 wires, respectively.&#xA;&quot;1-1-4&quot; means command, address and data are transmitted through 1 wire, 1 wire and 4 wires, respectively.&#xA;&quot;1-2-2&quot; means command, address and data are transmitted through 1 wire, 2 wires and 2 wires, respectively.&#xA;&quot;1-4-4&quot; means command, address and data are transmitted through 1 wire, 4 wires and 4 wires, respectively." />
+      <field name="SpiBusy" bit="31" size="1" desc="Read-only. Reset: 0. 0=SPI bus is idle. 1=SPI bus is busy." />
     </register>
-    <register name="SPI_RestrictedCmd1" type="mmio" bar="SPIBAR" offset="0x04" size="4" desc="SPI_RestrictedCmd1 Register">
-      <field name="RestrictedCmd0" bit="0"  size="8" desc="This defines a restricted command issued by the MAC which will be checked by the SB600. If the opcode issued by the MAC matches with this register and the address space is in the BIOS space, this controller will simply ignore the command for the case of bridge mode. For peer mode, the SPI controller will jam the entire interface as an attempt to stop that transaction. Note either SpiAccessMacRomEn and/or SpiHostAccessRomEn bit is cleared, these registers become read only and cannot be changed any more."/>
-      <field name="RestrictedCmd1" bit="8"  size="8" desc="Same as RestrictedCmd0"/>
-      <field name="RestrictedCmd2" bit="16" size="8" desc="Same as RestrictedCmd0"/>
-      <field name="RestrictedCmd3" bit="24" size="8" desc="Same as RestrictedCmd0"/>
+    <register name="SPIRestrictedCmd" type="mmio" bar="SPIBAR" offset="0x4" size="4" desc="SPIRestrictedCmd Register">
+      <field name="RestrictedCmd0" bit="0" size="8" desc="Reset: 00h. This defines a restricted command issued by the MAC which is checked by the SB.&#xA;If the opcode issued by the MAC matches with this register and the address space is in the BIOS space, this&#xA;controller simply ignores the command for the case of bridge mode. For peer mode, the SPI controller stalls the&#xA;entire interface as an attempt to stop that transaction. Note when either SpiAccessRomEn and/or&#xA;SpiHostAccessRomEn bit are cleared, these registers become read-only and cannot be changed any more.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RestrictedCmd1" bit="8" size="8" desc="Reset: 00h. Same as RestrictedCmd0.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RestrictedCmd2" bit="16" size="8" desc="Reset: 00h. Same as RestrictedCmd0.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RestrictedCmd3" bit="24" size="8" desc="Reset: 00h. Same as RestrictedCmd0.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
     </register>
-    <register name="SPI_RestrictedCmd2" type="mmio" bar="SPIBAR" offset="0x08" size="4" desc="SPI_RestrictedCmd1 Register">
-      <field name="RestrictedCmd4"       bit="0"  size="8" desc="Same as RestrictedCmd0"/>
-      <field name="RestrictedCmdWoAddr0" bit="8"  size="8" desc="Same as RestrictedCmd0 except this command does not have address"/>
-      <field name="RestrictedCmdWoAddr1" bit="16" size="8" desc="Same as RestrictedCmd0 except this command does not have address"/>
-      <field name="RestrictedCmdWoAddr2" bit="24" size="8" desc="Same as RestrictedCmd0 except this command does not have address"/>
+    <register name="SPIRestrictedCmd2" type="mmio" bar="SPIBAR" offset="0x8" size="4" desc="SPIRestrictedCmd2 Register">
+      <field name="RestrictedCmd4" bit="0" size="8" desc="Reset: 00h. Same as FCH::ITF::SPI::SPIRestrictedCmd[RestrictedCmd0].&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RestrictedCmdWoAddr0" bit="8" size="8" desc="Reset: 00h. Same as FCH::ITF::SPI::SPIRestrictedCmd[RestrictedCmd0] except that&#xA;this field defines a restricted command that does not have an address.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RestrictedCmdWoAddr1" bit="16" size="8" desc="Reset: 00h. Same as [RestrictedCmdWoAddr0].&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RestrictedCmdWoAddr2" bit="24" size="8" desc="Reset: 00h. Same as [RestrictedCmdWoAddr0].&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
     </register>
-    <register name="SPI_Cntrl1" type="mmio" bar="SPIBAR" offset="0x0C" size="4" desc="SPI_Cntrl1 Register">
-      <field name="SPIParameters"   bit="0" size="8" desc="This is the TX/RX FIFO port which can take up to 8 bytes. To send data to SPI ROM, software writes data into this port. To retrieve data that are received from the SPI ROM, software reads from this port."/>
-      <field name="FifoPtr"         bit="8" size="3" desc="This three bits show the internal pointer location"/>
-      <field name="TrackMacLockEn"  bit="11" size="1" desc="When set, the controller will lock the SPI for the MAC when it has detected a command (from the MAC) matching the value defined in offset 10h or 11h. Conversely, it will unlock the bus when it has detected a command (from the MAC) matching the value defined in offset 12h or 13h"/>
-      <field name="NormSpeed"       bit="12" size="2" desc="This defines the clock speed for the non-fast read command. 00 – Reserved, 01 – 33Mhz, 10 – 22 Mhz, 11 – 16.5Mhz"/>
-      <field name="FastSpeed"       bit="14" size="2" desc="This defines the clock speed for the fast speed read. 00 – Reserved, 01 – 33Mhz, 10 – 22 Mhz, 11 – 16.5Mhz"/>
-      <field name="WaitClkInterval" bit="16" size="6" desc="Timing parameters used for SPI sharing protocol"/>
-      <field name="SetLockCmd"      bit="22" size="1" desc="Lock the SPI bus on the next transaction"/>
-      <field name="SetUnlockCmd"    bit="23" size="1" desc="Unlock the SPI bus on the next transaction"/>
-      <field name="ByteProgramCmd"  bit="24" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the BYTE PROGRAM command."/>
+    <register name="SPICntrl1" type="mmio" bar="SPIBAR" offset="0xc" size="4" desc="SPICntrl1 Register">
+      <field name="SpiParameters" bit="0" size="8" desc="Read-write. Reset: 00h. This is the TX/RX FIFO port which can take up to 8 bytes. To send data&#xA;to SPI ROM, software Writes data into this port. To retrieve data that are received from the SPI ROM, software&#xA;Reads from this port." />
+      <field name="Reserved0" bit="8" size="3" desc="" />
+      <field name="TrackMacLockEn" bit="11" size="1" desc="Read-write. Reset: 0. When set, the controller will lock the SPI for the MAC when it has&#xA;detected a command (from the MAC) matching the value defined in offset 10h or 11h. Conversely, it will unlock&#xA;the bus when it has detected a command (from the MAC) matching the value defined in offset 12h or 13h." />
+      <field name="Reserved1" bit="12" size="4" desc="" />
+      <field name="WaitCount" bit="16" size="6" desc="Read-write. Reset: 22h. Specifies the time, where units = 15 ns * (WaitCount + 1).&#xA;ValidValues:&#xA;Value Description&#xA;00h    15 ns.&#xA;01h    2 *15 ns (30 ns).&#xA;3Fh-02h  &lt;VALUE + 1&gt; * 15 ns." />
+      <field name="SpiDoUnLockOnNxtCmd" bit="22" size="1" desc="Read-write. Reset: 0. SPI does an unlock on the next command." />
+      <field name="SpiDoLockOnNxtCmd" bit="23" size="1" desc="Read-write. Reset: 0. SPI does a lock on the next command." />
+      <field name="ByteCommand" bit="24" size="8" desc="Reset: 02h. Specifies the command byte for the opcode transaction.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
     </register>
-    <register name="SPI_CmdValue0" type="mmio" bar="SPIBAR" offset="0x10" size="4" desc="SPI_CmdValue0 Register">
-      <field name="MacLockCmd0"   bit="0"  size="8" desc="This is used to compare against the opcode sent out by the MAC. If SPI_Cntrl1[11] is set, the controller will lock the SPI bus for the MAC. In other words, the MAC has the exclusive access to the ROM; access by the CPU will be delayed until this is unlocked. This is to allow the MAC to do certain sequence of operations without interruption."/>
-      <field name="MacLockCmd1"   bit="8"  size="8" desc="Same as MacLockCmd0"/>
-      <field name="MacUnlockCmd0" bit="16" size="8" desc="This is used to compare against the opcode sent out by the MAC. If SPI_Cntrl1[11] is set, the controller will unlock the SPI bus for the MAC. In other words, access by the CPU will be allowed again."/>
-      <field name="MacUnlockCmd1" bit="24" size="8" desc="Same as MacUnlockCmd0"/>
+    <register name="SPICmdVal0" type="mmio" bar="SPIBAR" offset="0x10" size="4" desc="SPICmdVal0 Register">
+      <field name="MacLockCmd0" bit="0" size="8" desc="Reset: 06h. This is used to compare against the opcode sent out by the MAC. If&#xA;FCH::ITF::SPI::SPICntrl1[TrackMacLockEn] == 1, the controller locks the SPI bus for the MAC. In other words,&#xA;the MAC has the exclusive access to the ROM and access by the CPU is delayed until this is unlocked. This&#xA;allows the MAC to do a certain sequence of operations without interruption.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="MacLockCmd1" bit="8" size="8" desc="Reset: 20h. Same as MacLockCmd0.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="MacUnlockCmd0" bit="16" size="8" desc="Reset: 04h. This field is used to compare against the opcode sent out by the MAC. If&#xA;FCH::ITF::SPI::SPICntrl1[TrackMacLockEn] == 1, the controller unlocks the SPI bus for the MAC. In other&#xA;words, access by the CPU is allowed again.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="MacUnlockCmd1" bit="24" size="8" desc="Reset: 04h. Same as MacUnlockCmd0.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
     </register>
-    <register name="SPI_CmdValue1" type="mmio" bar="SPIBAR" offset="0x14" size="4" desc="SPI_CmdValue1 Register">
-      <field name="WREN" bit="0"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the WREN (write enable) command from the MAC. In the bridge mode, SB600 will need to decode commands from the MAC"/>
-      <field name="WRDI" bit="8"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the WRDI (write disable) command from the MAC."/>
-      <field name="RDID" bit="16" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the RDID (read ID) command from the MAC"/>
-      <field name="RDSR" bit="24" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the RDSR (read status register) command from the MAC"/>
+    <register name="SPICmdVal1" type="mmio" bar="SPIBAR" offset="0x14" size="4" desc="SPICmdVal1 Register">
+      <field name="WREN" bit="0" size="8" desc="Reset: 06h. This is used to compare against the opcode sent out by the MAC. This is a predefined value&#xA;to decode for the WREN (Write Enable) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="WRDI" bit="8" size="8" desc="Reset: 04h. This is used to compare against the opcode sent out by the MAC. This is a predefined value to&#xA;decode for the WRDI (Write Disable) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RDID" bit="16" size="8" desc="Reset: 9Fh. This is used to compare against the opcode sent out by the MAC. This is a predefined value to&#xA;decode for the RDID (Read ID) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="RDSR" bit="24" size="8" desc="Reset: 05h. This is used to compare against the opcode sent out by the MAC. This is a predefined value to&#xA;decode for the RDSR (Read Status Register) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
     </register>
-    <register name="SPI_CmdValue2" type="mmio" bar="SPIBAR" offset="0x18" size="4" desc="SPI_CmdValue2 Register">
-      <field name="Read"   bit="0"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the Read (Read byte) command from the MAC. In the bridge mode, SB600 will need to decode commands from the MAC"/>
-      <field name="FRead"  bit="8"  size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the FRead (fast read) command from the MAC."/>
-      <field name="PAGEWR" bit="16" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the PAGEWR (page write) command from the MAC"/>
-      <field name="BYTEWR" bit="24" size="8" desc="This is used to compare against the opcode sent out by the MAC. This is a predefined value to decode for the BYTEWR (byte write) command from the MAC."/>
+    <register name="SPICmdVal2" type="mmio" bar="SPIBAR" offset="0x18" size="4" desc="SPICmdVal2 Register">
+      <field name="Read" bit="0" size="8" desc="Reset: 03h. This is used to compare against the opcode sent out by the MAC. This is a predefined value to&#xA;decode for the Read (Read Byte) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="FRead" bit="8" size="8" desc="Reset: 0Bh. This is used to compare against the opcode sent out by the MAC. This is a predefined value&#xA;to decode for the FRead (Fast Read) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="PAGEWR" bit="16" size="8" desc="Reset: 0Ah. Page Write command.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
+      <field name="BYTEWR" bit="24" size="8" desc="Reset: 02h. This is used to compare against the opcode sent out by the MAC. This is a predefined&#xA;value to decode for the BYTEWR (Byte Write) command from the MAC.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only." />
     </register>
-    <register name="SPI_FakeID" type="mmio" bar="SPIBAR" offset="0x1C" size="1" desc="SPI_FakeID Register">
-      <field name="SPI_FakeID" bit="0" size="8" desc="This is used as the faked ID value to be returned to the MAC as a response to the RDID command. This is only used under the bridge mode."/>
+    <register name="Reserved" type="mmio" bar="SPIBAR" offset="0x1c" size="4" desc="Reserved Register">
+      <field name="Reserved" bit="0" size="8" desc="" />
+    </register>
+    <register name="AltSPICS" type="mmio" bar="SPIBAR" offset="0x1d" size="4" desc="AltSPICS Register">
+      <field name="AltSpiCsEn" bit="0" size="2" desc="Reset: 0h. These two bits select the alternate SPI_CS# for BIOS_ROM.&#xA;AccessType: (FCH::ITF::SPI::SPICntrl0[SpiAccessRomEn] &amp;&amp;&#xA;FCH::ITF::SPI::SPICntrl0[SpiHostAccessRomEn]) ? Read-write : Read-only.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    BIOS ROM select SPI_CS1_L.&#xA;1h    BIOS ROM select SPI_CS2_L.&#xA;3h-2h  Reserved." />
+      <field name="WriteBufferEn" bit="2" size="1" desc="Read-write. Reset: 0. 1=SPI bridge can take burst write from the host and transfer it to the SPI&#xA;flash. SPI write performance enhancement." />
+      <field name="SpiProtectEn0" bit="3" size="1" desc="Reset: 0. 1=Enable SPI Read/Write protection ranges specified by FCH::ITF::LPC::RomProtect.&#xA;AccessType: FCH::ITF::SPI::AltSPICS[SpiProtectLock] ? Read-only : Read-write." />
+      <field name="SpiProtectEn1" bit="4" size="1" desc="Reset: 0. 1=Enable SPI protection to prevent host from accessing IMC and USB3 space.&#xA;AccessType: FCH::ITF::SPI::AltSPICS[SpiProtectLock] ? Read-only : Read-write." />
+      <field name="SpiProtectLock" bit="5" size="1" desc="Read-write. Reset: 0. 1=Bits[3,4,5] are no longer writable." />
+      <field name="Reserved" bit="6" size="1" desc="" />
+      <field name="SpiCsDlySel" bit="7" size="1" desc="Read-write. Reset: 0. 0=75 ns minimum SPI_CS# de-assertion time. 1=125 ns minimum SPI_CS#&#xA;de-assertion time." />
+    </register>
+    <register name="SPI100En" type="mmio" bar="SPIBAR" offset="0x20" size="4" desc="SPI100En Register">
+      <field name="UseSpi100" bit="0" size="1" desc="Read-write. Reset: 0. 0=Does not support 100 MHz speed. 1=Supports 100 MHz speed. The actual&#xA;Read speed also depends on FCH::ITF::SPI::SPI100SpeedCfg." />
+      <field name="Reserved" bit="1" size="7" desc="" />
+    </register>
+    <register name="SPI100SpeedCfg" type="mmio" bar="SPIBAR" offset="0x22" size="4" desc="SPI100SpeedCfg Register">
+      <field name="TpmSpeedNew" bit="0" size="4" desc="Read-write. Reset: 3h. Configures the SPI bus speed for TPM Read and Write to the&#xA;SPI100 engine.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    66.66 MHz.&#xA;1h    33.33 MHz.&#xA;2h    22.22 MHz.&#xA;3h    16.66 MHz.&#xA;4h    100 MHz.&#xA;5h    800 KHz.&#xA;Fh-6h  Reserved." />
+      <field name="AltSpeedNew" bit="4" size="4" desc="Read-write. Reset: 3h. Configures the SPI bus speed for the AltOpCode mode in SPI100&#xA;engine.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    66.66 MHz.&#xA;1h    33.33 MHz.&#xA;2h    22.22 MHz.&#xA;3h    16.66 MHz.&#xA;4h    100 MHz.&#xA;5h    800 KHz.&#xA;Fh-6h  Reserved." />
+      <field name="FastSpeedNew" bit="8" size="4" desc="Read-write. Reset: 1h.&#xA;Description: Configures the SPI bus speed for the following command in SPI100 engine:&#xA;* FAST READ&#xA;* DDR READ (1-1-2)&#xA;* QDR READ (1-1-4)&#xA;* DPR READ (1-2-2)&#xA;* QPR READ (1-4-4)&#xA;ValidValues:&#xA;Value  Description&#xA;0h    66.66 MHz.&#xA;1h    33.33 MHz.&#xA;2h    22.22 MHz.&#xA;3h    16.66 MHz.&#xA;4h    100 MHz.&#xA;5h    800 KHz.&#xA;Fh-6h  Reserved." />
+      <field name="NormSpeedNew" bit="12" size="4" desc="Read-write. Reset: 3h. Configures the SPI bus normal speed in SPI100 engine. If the&#xA;command is not using TpmSpeed and FastSpeed, it uses NormSpeed.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    66.66 MHz.&#xA;1h    33.33 MHz.&#xA;2h    22.22 MHz.&#xA;3h    16.66 MHz.&#xA;4h    100 MHz.&#xA;5h    800 KHz.&#xA;Fh-6h  Reserved." />
+    </register>
+    <register name="SPI100HostPrefetchCfg" type="mmio" bar="SPIBAR" offset="0x2c" size="4" desc="SPI100HostPrefetchCfg Register">
+      <field name="HostPrefetchSize" bit="0" size="7" desc="Read-write. Reset: 40h. Configures the maximum prefetch byte count for the host&#xA;prefetch buffer. The value has to be less than or equal to 64." />
+      <field name="HostPrefOn64ByteBoundary" bit="7" size="1" desc="Read-write. Reset: 1. 0=Always fetch 64 bytes no matter whether the first Host&#xA;requested address lies on the 64-byte boundary or not. 1=Fetch 64 bytes if the first Host requested address lies on&#xA;the 64-byte boundary, otherwise, get the 4 bytes the Host is currently requesting." />
+      <field name="HostHitRange" bit="8" size="4" desc="Read-write. Reset: 4h. Configures the &quot;Hit Range&quot; in the &quot;Hit Soon&quot; algorithm." />
+      <field name="HostWillHitEn" bit="12" size="1" desc="Read-write. Reset: 1. 1=Enable the &quot;Will Hit&quot; algorithm. When &quot;Will Hit&quot; algorithm is enabled,&#xA;&quot;Hit Soon&quot; algorithm is automatically disabled regardless of the setting in HostHitSoonEn." />
+      <field name="HostHitSoonEn" bit="13" size="1" desc="Read-write. Reset: 0. 1=Enable the &quot;Hit Soon&quot; algorithm." />
+      <field name="HostBurstEn" bit="14" size="1" desc="Read-write. Reset: 1. 1=Enable Host buffer burst data out. Host burst enable." />
+      <field name="Rd4dw_en_host" bit="15" size="1" desc="Read-write. Reset: 1. 1=Enable Host burst to 4 DWORD. Rd4dw_en_host." />
+    </register>
+    <register name="DDRCmdCode" type="mmio" bar="SPIBAR" offset="0x40" size="4" desc="DDRCmdCode Register">
+      <field name="DDR_CMD" bit="0" size="8" desc="Read-write. Reset: 3Bh. Double Data Rate command." />
+    </register>
+    <register name="QDRCmdCode" type="mmio" bar="SPIBAR" offset="0x41" size="4" desc="QDRCmdCode Register">
+      <field name="QDR_CMD" bit="0" size="8" desc="Read-write. Reset: 6Bh. Quad Data Rate command." />
+    </register>
+    <register name="DPRCmdCode" type="mmio" bar="SPIBAR" offset="0x42" size="4" desc="DPRCmdCode Register">
+      <field name="DPR_CMD" bit="0" size="8" desc="Read-write. Reset: BBh. DPR command." />
+    </register>
+    <register name="QPRCmdCode" type="mmio" bar="SPIBAR" offset="0x43" size="4" desc="QPRCmdCode Register">
+      <field name="QPR_CMD" bit="0" size="8" desc="Read-write. Reset: EBh. QPR command." />
+    </register>
+    <register name="ModeByte" type="mmio" bar="SPIBAR" offset="0x44" size="4" desc="ModeByte Register">
+      <field name="ModeByte" bit="0" size="8" desc="Read-write. Reset: 00h. SPI Read Mode." />
+    </register>
+    <register name="CmdCode" type="mmio" bar="SPIBAR" offset="0x45" size="4" desc="CmdCode Register">
+      <field name="SpiOpCode" bit="0" size="8" desc="Read-write. Reset: 00h. Specifies the SPI opcode in alternate program method." />
+    </register>
+    <register name="CmdTrig" type="mmio" bar="SPIBAR" offset="0x47" size="4" desc="CmdTrig Register">
+      <field name="Reserved" bit="0" size="7" desc="" />
+      <field name="Execute" bit="7" size="1" desc="Write-1-only. Reset: 0. Trigger to execute command." />
+    </register>
+    <register name="TxByteCnt" type="mmio" bar="SPIBAR" offset="0x48" size="4" desc="TxByteCnt Register">
+      <field name="TxByteCount" bit="0" size="8" desc="Read-write. Reset: 00h. Number of bytes to be sent to SPI ROM." />
+    </register>
+    <register name="RxByteCnt" type="mmio" bar="SPIBAR" offset="0x4b" size="4" desc="RxByteCnt Register">
+      <field name="RxByteCount" bit="0" size="8" desc="Read-write. Reset: 00h. Number of bytes to be received from the SPI ROM." />
+    </register>
+    <register name="SpiStat" type="mmio" bar="SPIBAR" offset="0x4c" size="4" desc="SpiStat Register">
+      <field name="DoneByteCount" bit="0" size="8" desc="Read-only. Reset: 00h. Indicates how many bytes has been received or sent in the previous SPI&#xA;transaction." />
+      <field name="FiFoWrPtr" bit="8" size="7" desc="Read-only. Reset: 00h. The current Data FIFO write pointer." />
+      <field name="Reserved0" bit="15" size="1" desc="" />
+      <field name="FiFoRdPtr" bit="16" size="7" desc="Read-only. Reset: 00h. The current Data FIFO read pointer." />
+      <field name="Reserved1" bit="23" size="8" desc="" />
+      <field name="SpiBusy" bit="31" size="1" desc="Read-only. Reset: 0. 0=SPI bus is idle. 1=SPI bus is busy." />
+    </register>
+    <register name="FIFO" type="mmio" bar="SPIBAR" offset="0x80" size="4" desc="FIFO Register">
+      <field name="FiFo" bit="0" size="8" desc="Read-write. Reset: 00h. Contains the Data FIFO byte which is used in command mode to send or receive&#xA;data." />
     </register>
 
     <!-- 9.2.9.4 eSPI registers -->
-    <register name="DN_TXHDR_0th" type="mmio" bar="eSPIBAR" offset="0x00" size="4" desc="Hardware Sequencing Flash Control Register">
-      <field name="DNCMD_HDATA2" bit="24"  size="8" desc=""/>
-      <!-- more fields  ... -->
+    <register name="DN_TXHDR_0th" type="mmio" bar="ESPIBAR" offset="0x0" size="4" desc="DN_TXHDR_0th Register">
+      <field name="SLAVE_SEL" bit="4" size="2" desc="Read-write. Reset: 0h. Slave N selected.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Slave0.&#xA;3h-1h  Reserved.&#xA;3 DNCMD_STATUS. Read,Write-0-only. Reset: 0. 0=Clear: Hardware will automatically clear this bit after the&#xA;packet is sent down. 1=Set: The bit needs to be set last by software after all eSPI specific registers are all&#xA;programmed to inform the protocoal layer to send down command or packet. Downstream command status.&#xA;Cleared when Writting to 0.&#xA;2:0 DNCMD_TYPE. Read-write. Reset: 0h. TX Command Type.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Set Configuration (Independent command).&#xA;1h    Get Configuration (Independent command).&#xA;2h    In-band RESET command (Independent command).&#xA;3h    Peripheral Unsuccesful Cpl down stream.&#xA;4h    Peripheral Channel message down stream.&#xA;5h    VW Channel down stream.&#xA;6h    OOB Channel down stream.&#xA;7h    Flash Channel Cpl/CplD/Unsuccesful Cpl down stream." />
+      <field name="Reserved" bit="6" size="2" desc="" />
+      <field name="DNCMD_HDATA0" bit="8" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Independent command selected:&#xA;- Address [15:8] of SET_CONFIGURATION/GET_CONFIGURATION.&#xA;- [15:12]:0h&#xA;- [11:8]: address[11:8]&#xA;- Note: In-Band command. These bits are ignored.&#xA;Peripheral selected:&#xA;- a) Software programs this byte to be Message cycle type(0001xxxy) to instruct the eSPI controller to send down&#xA;peripheral message with data (8 bytes + data byte N) or without data (total 8 bytes).&#xA;- b) Software programs this byte to be unsuccessful completion to instruct the eSPI controller to send down&#xA;unsuccessful completion.&#xA;VW selected: It indicates the Virtual Wire Count is sent down. Bit[5:0] represends how many Virtual Wire groups&#xA;to be commnunicated in the same packets.&#xA;- NOTE: In the current design, it is limited to 16 groups (bit[5:4] = 00b), to save the registers needed.&#xA;OOB selected: Software programs this byte to be 0x21 to instruct the eSPI controller to send down Tunneled&#xA;SMBUS message to the slave.&#xA;- Software prgrames this byte to be CycleType for Flash Completion, including Cpl/Unsuccessful Cpl/CplD." />
+      <field name="DNCMD_HDATA1" bit="16" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Independent channel command selected:&#xA;- Addres [7:0] of SET_CONFIGURATION/GET_CONFIGURATION.&#xA;- Bit[1:0] needs to be 00b.&#xA;- Note: In-Band command. These bits are ignored.&#xA;Peripheral selected:&#xA;- [23:20]: Tag&#xA;- [19:16]: Length[11:8]&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected:&#xA;- [23:20]: Tag&#xA;- [19:16]: Length[11:8]&#xA;FLASH selected:&#xA;- [23:20]: Tag&#xA;- [19:16]: Length[11:8]" />
+      <field name="DNCMD_HDATA2" bit="24" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Independent channel command selected:&#xA;- Reserved, should always be 00h.&#xA;Peripheral selected : Length[7:0].&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected: Length[7:0].&#xA;FLASH selected: Length[7:0]." />
     </register>
+    <register name="DN_TXHDR_1" type="mmio" bar="ESPIBAR" offset="0x4" size="4" desc="DN_TXHDR_1 Register">
+      <field name="DNCMD_HDATA3" bit="0" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Data[7:0].&#xA;Peripheral selected: Message code [7:0].&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected:&#xA;- SMBus Slave Address. Bit[0] needs to programmed to 1.&#xA;FLASH selected: Reserved, should always be 00h." />
+      <field name="DNCMD_HDATA4" bit="8" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected:&#xA;- Data[15:8].&#xA;Peripheral selected: Message specific byte[0].&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected: SMBus Command Op Code.&#xA;FLASH selected: Reserved, should always be 00h." />
+      <field name="DNCMD_HDATA5" bit="16" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Data[23:16].&#xA;Peripheral selected: Message specific byte[1].&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected:&#xA;- SMBus Byte Count. Need to program to be not greater than 128 bytes.&#xA;FLASH selected: Reserved, shouls always be 00h." />
+      <field name="DNCMD_HDATA6" bit="24" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Data[31:24].&#xA;Peripheral selected: Message specific byte[2].&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected: Reserved, should always be 00h.&#xA;FLASH selected: Reserved, should always be 00h." />
+    </register>
+    <register name="DN_TXHDR_2" type="mmio" bar="ESPIBAR" offset="0x8" size="4" desc="DN_TXHDR_2 Register">
+      <field name="DNCMD_HDATA7" bit="0" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Reserved, should always be 00h.&#xA;Peripheral selected: Message specific byte[3].&#xA;VW selected: Reserved, should always be 00h.&#xA;OOB selected: Reserved, should always be 00h.&#xA;FLASH selected: Reserved, should always be 00h." />
+      <field name="Reserved" bit="8" size="24" desc="" />
+    </register>
+    <register name="DN_TXDATA_PORT" type="mmio" bar="ESPIBAR" offset="0xc" size="4" desc="DN_TXDATA_PORT Register">
+      <field name="DN_TXDATA_B0" bit="0" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Reserved, should always be 00h.&#xA;Peripheral selected: Message Data DWn[7:0].&#xA;VW selected: VW Index Group 2n.&#xA;OOB selected: OOB Message DWn[7:0].&#xA;FLASH selected: Flash Cpl Data DWn[7:0]." />
+      <field name="DN_TXDATA_B2" bit="16" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Reserved, should always be 00h.&#xA;Peripheral selected: Message Data DWn[23:16].&#xA;VW selected: VW Index Group (2n + 1).&#xA;OOB selected: OOB Message DWn[23:16].&#xA;FLASH selected: Flash Cpl Data DWn[23:16].&#xA;15:8 DN_TXDATA_B1. Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Reserved, should always be 00h.&#xA;Peripheral selected: Message Data DWn[15:8].&#xA;VW selected: VW Index Group 2n Data.&#xA;OOB selected: OOB Message DWn[15:8].&#xA;FLASH selected: Flash Cpl Data DWn[15:8]." />
+      <field name="DN_TXDATA_B3" bit="24" size="8" desc="Read-write. Reset: 00h.&#xA;Description: The definition for this field is dependent upon SW_CMD_TYPE.&#xA;Indipendent channel command selected: Reserved, should always be 00h.&#xA;Peripheral selected: Message Data DWn[31:24].&#xA;VW selected: VW Index Group (2n + 1) data.&#xA;OOB selected: OOB Message DWn[31:24].&#xA;FLASH selected: Flash Cpl Data DWn[31:24]." />
+    </register>
+    <register name="UP_RXHDR_0" type="mmio" bar="ESPIBAR" offset="0x10" size="4" desc="UP_RXHDR_0 Register">
+      <field name="UPCMD_TYPE" bit="0" size="3" desc="Read-only. Reset: 0h. Upstream command type.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Flash Channel Request (GET_FLASH_NP).&#xA;1h    Upstream OOB message (GET_OOB).&#xA;7h-2h  Reserved." />
+      <field name="UPCMD_STATUS" bit="3" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=OOB message packet or Flash request packet not&#xA;received. 1=This bit will be set after OOB message packet or Flash request packet is recieved, and eSPI will not&#xA;send down another GET_OOB or GET_FLASH_NP before the Valid bit. Cleared by software. Upstream&#xA;command status. Valid bit Status. This bit can be cleared by software writing 1 to this field." />
+      <field name="SLAVE_SEL" bit="4" size="2" desc="Read-only. Reset: 0h. Slave N receive select.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    The upstream packet is from Slave0.&#xA;3h-1h  Reserved." />
+      <field name="Reserved" bit="6" size="2" desc="" />
+      <field name="UPCMD_HDATA0" bit="8" size="8" desc="Read-only. Reset: 00h. Cycle Type: This field stores the cycle type from GET_FLASH_NP&#xA;and GET_OOB." />
+      <field name="UPCMD_HDATA1" bit="16" size="8" desc="Read-only. Reset: 00h.&#xA;Description: RX_TAG_LEN:&#xA;This field stores the Tag and Length[11:8] from which the eSPI packet recieved by&#xA;GET_FLASH_NP/GET_OOB.&#xA;- Bits[23:20]: Tag.&#xA;- Bits[19:16]: Length[11:8]." />
+      <field name="UPCMD_HDATA2" bit="24" size="8" desc="Read-only. Reset: 00h.&#xA;Description: RX_LOW_LEN:&#xA;This field stores the Length[7:0] from GET_FLASH_NP/GET_OOB.&#xA;- Bits[31:24]: Length[7:0]." />
+    </register>
+    <register name="UP_RXHDR_1" type="mmio" bar="ESPIBAR" offset="0x14" size="4" desc="UP_RXHDR_1 Register">
+      <field name="UPCMD_HDATA3" bit="0" size="8" desc="Read-only. Reset: 00h.&#xA;Description: The definition for this field is dependent upon RX_REQ_TYPE.&#xA;- OOB selected: SMBus Slave Address.&#xA;- FLASH selected: Addess[31:24]." />
+      <field name="UPCMD_HDATA4" bit="8" size="8" desc="Read-only. Reset: 00h.&#xA;Description: The definition for this field is dependent upon RX_REQ_TYPE.&#xA;- OOB selected: SMBus Command Opcode.&#xA;- FLASH selected: Addess[23:16]." />
+      <field name="UPCMD_HDATA5" bit="16" size="8" desc="Read-only. Reset: 00h.&#xA;Description: The definition for this field is dependent upon RX_REQ_TYPE.&#xA;- OOB selected: SMBus Byte Count.&#xA;- FLASH selected: Addess[15:8]." />
+      <field name="UPCMD_HDATA6" bit="24" size="8" desc="Read-only. Reset: 00h.&#xA;Description: The definition for this field is dependent upon RX_REQ_TYPE.&#xA;- OOB selected: Reserved.&#xA;- FLASH selected: Addess[7:0]." />
+    </register>
+    <register name="UP_RXDATA_PORT" type="mmio" bar="ESPIBAR" offset="0x18" size="4" desc="UP_RXDATA_PORT Register">
+      <field name="UP_RXDATA" bit="0" size="32" desc="Read-only. Reset: 0000_0000h. Receive data." />
+    </register>
+    <register name="RESERVED_REG0" type="mmio" bar="ESPIBAR" offset="0x1c" size="4" desc="RESERVED_REG0 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_REG1" type="mmio" bar="ESPIBAR" offset="0x20" size="4" desc="RESERVED_REG1 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_REG2" type="mmio" bar="ESPIBAR" offset="0x24" size="4" desc="RESERVED_REG2 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="MASTER_CAP" type="mmio" bar="ESPIBAR" offset="0x2c" size="4" desc="MASTER_CAP Register">
+      <field name="FLASH_SUPPORT" bit="0" size="1" desc="Read-only. Reset: Fixed,1. 0=Not supported. 1=Supported. Flash Access Channel support&#xA;by Master." />
+      <field name="OOB_SUPPORT" bit="1" size="1" desc="Read-only. Reset: Fixed,1. 0=Not supported. 1=Supported. OOB Message Channel support by&#xA;Master." />
+      <field name="VW_SUPPORT" bit="2" size="1" desc="Read-only. Reset: Fixed,1. 0=Not supported. 1=Supported. Virtual Wire Channel support by&#xA;Master." />
+      <field name="PR_SUPPORT" bit="3" size="1" desc="Read-only. Reset: Fixed,1. 0=Not supported. 1=Supported. Peripheral Channel support by&#xA;Master." />
+      <field name="ESPI_VERSION" bit="4" size="3" desc="Read-only. Reset: Fixed,1h. eSPI version.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Master supports eSPI 0.7 version.&#xA;1h    Master supports eSPI 0.75 version.&#xA;7h-2h  Reserved." />
+      <field name="FLASH_MAX_SIZE" bit="7" size="3" desc="Read-only. Reset: Fixed,2h. Flash Access Channel maximum payload size supported.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Reserved.&#xA;1h    64-byte maximum payload size.&#xA;2h    128-byte maximum payload size.&#xA;7h-3h  Reserved." />
+      <field name="VW_MAX_SIZE" bit="13" size="6" desc="Read-only. Reset: Fixed,0Fh. Operating maximum Virtual Wire Count supported. The&#xA;maximum number of Virtual Wire groups that can be sent in a single Virtual Wire packet. This is a 0-based count.&#xA;The default value of 0 indicates a count of 1.&#xA;12:10 OOB_MAX_SIZE. Read-only. Reset: Fixed,2h. OOB Message Channel maximum payload size supported.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Reserved.&#xA;1h    64-byte maximum payload size.&#xA;2h    128-byte maximum payload size.&#xA;7h-3h  Reserved." />
+      <field name="PR_MAX_SIZE" bit="19" size="3" desc="Read-only. Reset: Fixed,1h. Peripheral Channel maximum payload size supported. The payload&#xA;of the transaction must not cross the naturally aligned address boundary of the corresponding maximum payload&#xA;size.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Reserved.&#xA;1h    64-byte address aligned maximum payload size.&#xA;7h-2h  Reserved." />
+      <field name="SLAVE_NUM" bit="22" size="3" desc="Read-only. Reset: Fixed,1h. Indicates the number of slaves. A value of 1 indicates one slave&#xA;supported, and is the minimum requirement. A value of 0 indicates 8 slaves, and is the masimum supported&#xA;number.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    8 slaves (maximum supported).&#xA;1h    1 slave (minimum supported).&#xA;7h-2h  &lt;VALUE&gt; slaves supported." />
+      <field name="CLK_FREQ_SUPPORT" bit="25" size="3" desc="Read-only. Reset: Fixed,3h. Operating frequency supported.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    16.7 MHz.&#xA;1h    16.7 MHz, 33 MHz.&#xA;2h    Reserved.&#xA;3h    16.7 MHz, 33 MHz and 66 MHz.&#xA;7h-4h  Reserved." />
+      <field name="IO_MODE_SUPPORT" bit="28" size="2" desc="Read-only. Reset: Fixed,2h. IO Mode support by Controller, Quad mode, Dual mode,&#xA;single mode&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Single mode.&#xA;1h    Dual mode and Single mode.&#xA;2h    Quad mode, Dual mode and Single mode.&#xA;3h    Reserved." />
+      <field name="CRC_CHECK_SUPPORT" bit="31" size="1" desc="Read-only. Reset: Fixed,1. 0=Master supports CRC checking. 1=Master doesn't&#xA;support CRC checking. CRC checking supported by Master.&#xA;30 ALERT_MODE_SUPPORT. Read-only. Reset: Fixed,1. 0=IO[1] pin is used to signal the Alert event. 1=A&#xA;dedicated Alert# pin is used to signal the Alert event, or IO[1] pin used for Alert. Alert mode supported by the&#xA;Master." />
+    </register>
+    <register name="GLOBAL_CONTROL_0" type="mmio" bar="ESPIBAR" offset="0x30" size="4" desc="GLOBAL_CONTROL_0 Register">
+      <field name="WDG_EN" bit="0" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Watchdog enable. Set this bit to enable the watchdog&#xA;counter for all the PCI downstream transactions for eSPI." />
+      <field name="WAIT_CHKEN" bit="1" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Wait State Control enable. Set this bit to enable the&#xA;Wait State counter during eSPI bus turn around." />
+      <field name="PR_CLKGAT_EN" bit="2" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Peripheral clock gating enable. Set this bit to&#xA;enable peripheral block to dynamically clock gate once the Slave peripheral channel is disabled." />
+      <field name="AL_STOP_EN" bit="3" size="1" desc="Read-write. Reset: 1. 0=Disable. 1=Enable. Global Alink clock gating enable. set this bit to&#xA;enable the eSPI to generate ESPI_STOP_AlClk to do global clock gating once the global Alink Idle Timer&#xA;reaches the timeout value." />
+      <field name="AL_IDLE_TIMER" bit="4" size="3" desc="Read-write. Reset: 0h. Selects the idle timer timeout value. Once the idle timer reaches the&#xA;timeout value and AL_STOP_EN == 1, eSPI will output ESPI_STOP_AlClk to do global Alink clock gating.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    16 clocks.&#xA;1h    32 clocks.&#xA;2h    64 clocks.&#xA;3h    128 clocks.&#xA;4h    256 clocks.&#xA;5h    512 clocks.&#xA;6h    1024 clocks.&#xA;7h    2048 clocks." />
+      <field name="Reserved0" bit="7" size="1" desc="" />
+      <field name="WDG_CNT" bit="8" size="16" desc="Read-write. Reset: 0000h. Specifies the timeout retry count for PCI downstream retries." />
+      <field name="WAIT_CNT" bit="24" size="6" desc="Read-write. Reset: 00h. Specifies the timeout count for the wait state." />
+      <field name="Reserved1" bit="30" size="2" desc="" />
+    </register>
+    <register name="GLOBAL_CONTROL_1" type="mmio" bar="ESPIBAR" offset="0x34" size="4" desc="GLOBAL_CONTROL_1 Register">
+      <field name="SW_RST" bit="0" size="1" desc="Read-write. Reset: 0. 0=No effect. 1=Controller reset. Set the bit to perform global controller resets for&#xA;the eSPI controller. All the state machines will return to idle and all the requests will be flushed. All the&#xA;configuraiton registers will reset to default values and software needs to send In-Band Resets to each Slave device&#xA;after the controller reset so that both Master and Slave run in the same configuration mode." />
+      <field name="BUS_MASTER_EN" bit="1" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Bus Master enable. Enables eSPI Upstream&#xA;Memory cycle posting." />
+      <field name="SUB_DECODE_EN" bit="2" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Enable eSPI to do subtractive decode." />
+      <field name="SUB_DECODE_SLV" bit="3" size="2" desc="Read-write. Reset: 0h. Selects which slave to do subtractive decode.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Slave0.&#xA;1h    Slave1.&#xA;2h    Slave2.&#xA;3h    Slave3." />
+      <field name="Reserved0" bit="5" size="3" desc="" />
+      <field name="ERR_INT_MAP" bit="8" size="5" desc="Read-write. Reset: 1Fh. Error interrupt mapping. When a Slave transaction error has happened,&#xA;and the error interrupt enable has been set, the error interrupt will map to the interrupt pin according to the&#xA;following register setting.&#xA;ValidValues:&#xA;Value  Description&#xA;00h    IRQ0&#xA;01h    IRQ1&#xA;02h    IRQ2&#xA;16h-03h  IRQ&lt;VALUE&gt;&#xA;17h    IRQ23&#xA;1Eh-18h  Reserved.&#xA;1Fh    SMI#" />
+      <field name="RGCMD_INT_MAP" bit="13" size="5" desc="Read-write. Reset: 17h. Register Command interrupt mapping, When Register command&#xA;(Downstream/Upstream peripheral message, Downstream/Upstream OOB, Downstream VW, Channel&#xA;Independent command) has finished, eSPI controller generated interrupt will map to the interrupt pin according to&#xA;the following register setting.&#xA;ValidValues:&#xA;Value  Description&#xA;00h    IRQ0&#xA;01h    IRQ1&#xA;02h    IRQ2&#xA;16h-03h  IRQ&lt;VALUE&gt;&#xA;17h    IRQ23&#xA;1Eh-18h  Reserved.&#xA;1Fh    SMI#" />
+      <field name="Reserved1" bit="18" size="14" desc="" />
+    </register>
+    <register name="SLAVE0_IO_BASE_REG0" type="mmio" bar="ESPIBAR" offset="0x44" size="4" desc="SLAVE0_IO_BASE_REG0 Register">
+      <field name="RANGE0" bit="0" size="16" desc="Read-write. Reset: 0000h. IO decode base address for Range 0." />
+      <field name="RANGE1" bit="16" size="16" desc="Read-write. Reset: 0000h. IO decode base address for Range 1." />
+    </register>
+    <register name="SLAVE0_IO_BASE_REG1" type="mmio" bar="ESPIBAR" offset="0x48" size="4" desc="SLAVE0_IO_BASE_REG1 Register">
+      <field name="RANGE2" bit="0" size="16" desc="Read-write. Reset: 0000h. IO decode base address for Range 2." />
+      <field name="RANGE3" bit="16" size="16" desc="Read-write. Reset: 0000h. IO decode base address for Range 3." />
+    </register>
+    <register name="SLAVE0_IO_SIZE" type="mmio" bar="ESPIBAR" offset="0x4c" size="4" desc="SLAVE0_IO_SIZE Register">
+      <field name="RANGE0" bit="0" size="8" desc="Read-write. Reset: 00h. Programmable IO Range0 size." />
+      <field name="RANGE1" bit="8" size="8" desc="Read-write. Reset: 00h. Programmable IO Range1 size." />
+      <field name="RANGE2" bit="16" size="8" desc="Read-write. Reset: 00h. Programmable IO Range2 size." />
+      <field name="RANGE3" bit="24" size="8" desc="Read-write. Reset: 00h. Programmable IO Range3 size." />
+    </register>
+    <register name="SLAVE0_MMIO_BASE_REG0" type="mmio" bar="ESPIBAR" offset="0x50" size="4" desc="SLAVE0_MMIO_BASE_REG0 Register">
+      <field name="RANGE0" bit="0" size="32" desc="Read-write. Reset: 0000_0000h. MMIO decode base address for Range 0." />
+    </register>
+    <register name="SLAVE0_MMIO_BASE_REG1" type="mmio" bar="ESPIBAR" offset="0x54" size="4" desc="SLAVE0_MMIO_BASE_REG1 Register">
+      <field name="RANGE1" bit="0" size="32" desc="Read-write. Reset: 0000_0000h. MMIO decode base address for Range 1." />
+    </register>
+    <register name="SLAVE0_MMIO_BASE_REG2" type="mmio" bar="ESPIBAR" offset="0x58" size="4" desc="SLAVE0_MMIO_BASE_REG2 Register">
+      <field name="RANGE2" bit="0" size="32" desc="Read-write. Reset: 0000_0000h. MMIO decode base address for Range 2." />
+    </register>
+    <register name="SLAVE0_MMIO_BASE_REG3" type="mmio" bar="ESPIBAR" offset="0x5c" size="4" desc="SLAVE0_MMIO_BASE_REG3 Register">
+      <field name="RANGE3" bit="0" size="32" desc="Read-write. Reset: 0000_0000h. MMIO decode base address for Range 3." />
+    </register>
+    <register name="SLAVE0_MMIO_SIZE_REG0" type="mmio" bar="ESPIBAR" offset="0x60" size="4" desc="SLAVE0_MMIO_SIZE_REG0 Register">
+      <field name="RANGE0" bit="0" size="16" desc="Read-write. Reset: 0000h. Programmable MMIO Range0 size." />
+      <field name="RANGE1" bit="16" size="16" desc="Read-write. Reset: 0000h. Programmable MMIO Range1 size." />
+    </register>
+    <register name="SLAVE0_MMIO_SIZE_REG1" type="mmio" bar="ESPIBAR" offset="0x64" size="4" desc="SLAVE0_MMIO_SIZE_REG1 Register">
+      <field name="RANGE2" bit="0" size="16" desc="Read-write. Reset: 0000h. Programmable MMIO Range2 size." />
+      <field name="RANGE3" bit="16" size="16" desc="Read-write. Reset: 0000h. Programmable MMIO Range3 size." />
+    </register>
+    <register name="SLAVE0_CONFIG" type="mmio" bar="ESPIBAR" offset="0x68" size="4" desc="SLAVE0_CONFIG Register">
+      <field name="FLASH_EN" bit="0" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Flash Access Channel enable. This bit is set to 1 by the&#xA;eSPI Master to enable the Flash Access Channel." />
+      <field name="OOB_EN" bit="1" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. OOB Message Channel enable. This bit is set to 1 by the&#xA;eSPI Master to enable the OOB Message Channel." />
+      <field name="VW_EN" bit="2" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Virtual Wire Channel enable. This bit is set to 1 by the eSPI&#xA;Master to enable the Virtual Wire Channel." />
+      <field name="PR_EN" bit="3" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Peripheral Channel enable. This bit is set to 1 by the eSPI&#xA;Master to enable the Peripheral Channel." />
+      <field name="Reserved" bit="4" size="21" desc="" />
+      <field name="CLK_FREQ_SEL" bit="25" size="3" desc="Read-write. Reset: 0h. Identifies the operating frequency.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    16.6 MHz.&#xA;1h    33 MHz.&#xA;2h    66 MHz.&#xA;7h-3h  Reserved." />
+      <field name="IO_MODE_SEL" bit="28" size="2" desc="Read-write. Reset: 0h. IO Mode Select. eSPI Master programs this field to enable the&#xA;appropiate mode of operation, which takes effect at the de-assertion edge of the Chip Select#. The IO Mode&#xA;configured in this field must be supported by both the Master and Slave. Single IO mode is supported by default.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    Single IO.&#xA;1h    Dual IO.&#xA;2h    Quad IO.&#xA;3h    Reserved." />
+      <field name="CRC_CHECK_EN" bit="31" size="1" desc="Read-write. Reset: 0. 0=CRC checking is disabled. 1=CRC checking is enabled. This bit is&#xA;set to 1 by the eSPI Master to enable CRC checking on the eSPI bus. By default, CRC checking is disabled.&#xA;30 ALERT_MODE_SEL. Read-write. Reset: 0. 0=IO bit[1] pin is used to signal the Alert event. 1=A dedicated&#xA;Alert# pin is used to signal the Alert event. This bit serves to configure the Alert mechanism used by the slave to&#xA;initiate a transaction on the eSPI interface. Note: This bit can only be 0 in a single Master-single Slave topology.&#xA;For single Master-multiple Slave topology, this bit must be programmed to 1." />
+    </register>
+    <register name="SLAVE0_INT_EN" type="mmio" bar="ESPIBAR" offset="0x6c" size="4" desc="SLAVE0_INT_EN Register">
+      <field name="BUS_ERR_INT_EN" bit="0" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. eSPI Bus Timing Error enable. Enables&#xA;generation of an error interrupt when eSPI Bus Timing Error occurs." />
+      <field name="WAIT_TIMEOUT_INT_EN" bit="1" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. eSPI Bus Wait State Insertion&#xA;Maximum Out enable. Enables the generation of an error interrupt when eSPI Wait State timer timeout occurs." />
+      <field name="CRC_ERR_INT_EN" bit="2" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. CRC Error detected enable. Enables the&#xA;generation of an error interrupt when CRC Error is detected on the response phase." />
+      <field name="Reserved0" bit="3" size="1" desc="" />
+      <field name="NO_RSP_INT_EN" bit="4" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. NO_RESPONSE Response Code Received&#xA;enable. Enables the generation of an error interrupt when a NO_RESPONSE Response Code is received." />
+      <field name="FATAL_ERR_INT_EN" bit="5" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. FATAL_ERROR Response Code Received&#xA;enable. Enables the generation of an error interrupt when a FATAL_ERROR Response Code is received." />
+      <field name="NON_FATAL_ERR_INT_EN" bit="6" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. NON_FATAL_ERROR Response&#xA;Code Received enable. Enables the generation of an error interrupt when a NON_FATAL_ERROR Response&#xA;Code is received." />
+      <field name="INVALID_RSP_INT_EN" bit="7" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Unrecognized/Invalid Response Code&#xA;Received enable. Enables the generation of an error interrupt when an Unrecognized Response Code is received." />
+      <field name="INVALID_CT_INT_EN" bit="8" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Unrecognized/Invalid Cycle Type&#xA;Received enable. Enables the generation of an error interrupt when an Unrecognized Cycle Type is received." />
+      <field name="UNSUCSS_CPL_INT_EN" bit="9" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Unsuccessful CPL Received enable.&#xA;Enables the generation of an error interrupt when an Unsuccessful Completion without Data is received." />
+      <field name="ILLEGAL_TAG_INT_EN" bit="10" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Illegal Response Tag Received enable.&#xA;Enables the generation of an error interrupt when an Illegal tag is received." />
+      <field name="ILLEGAL_LEN_INT_EN" bit="11" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Illegal Response Length Received&#xA;enable. Enables the generation of an error interrupt when an Illegal length is received." />
+      <field name="RXOOB_OVERFLOW_INT_EN" bit="12" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. OOB Packet data length over&#xA;128 bytes enable. Enables the generation of an error interrupt when an OOB Packet data is over 128 bytes." />
+      <field name="RXMSG_OVERFLOW_INT_EN" bit="13" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Peripheral Message data length&#xA;over 32 bytes enable. Enables the generation of an error interrupt when a Peripheral Packet Message data is over&#xA;32 bytes." />
+      <field name="RXFLASH_OVERFLOW_INT_EN" bit="14" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Flash Packet data length over&#xA;128 bytes enable. Enables the generation of an error interrupt when a Flash Packet data is over 128 bytes." />
+      <field name="PROTOCOL_ERR_INT_EN" bit="15" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Protocol Error detected enable.&#xA;Enables the generation of an error interrupt when a Protocol Error is detected." />
+      <field name="Reserved1" bit="16" size="2" desc="" />
+      <field name="MST_ABORT_INT_EN" bit="18" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Alink Bus Master Abort enable. Enables&#xA;the generation of an error interrupt when an eSPI is doing a Master Abort." />
+      <field name="WDG_TIMEOUT_INT_EN" bit="19" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Alink Bus Watchdog Timer timeout&#xA;enable. Enables the generation of an error interrupt when an Alink Bus Watchdog Timer timeout occurs." />
+      <field name="Reserved2" bit="20" size="4" desc="" />
+      <field name="RXVW_GRP0_INT_EN" bit="24" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Virtual Wire Index Group0 Received&#xA;enable. Enables the generation of a command interrupt when a Virtual Wire Index Group0 register specified&#xA;Virtual Wire Packet is received." />
+      <field name="RXVW_GRP1_INT_EN" bit="25" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Virtual Wire Index Group1 Received&#xA;enable. Enables the generation of a command interrupt when a Virtual Wire Index Group1 register specified&#xA;Virtual Wire Packet is received." />
+      <field name="RXVW_GRP2_INT_EN" bit="26" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Virtual Wire Index Group2 Received&#xA;enable. Enables the generation of a command interrupt when a Virtual Wire Index Group2 register specified&#xA;Virtual Wire Packet is received." />
+      <field name="RXVW_GRP3_INT_EN" bit="27" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Virtual Wire Index Group3 Received&#xA;enable. Enables the generation of a command interrupt when a Virtual Wire Index Group3 register specified&#xA;Virtual Wire Packet is received." />
+      <field name="DNCMD_INT_EN" bit="28" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Downstream Register Command Complete&#xA;enable. Enables the generation of a command interrupt when a Downstream eSPI register's programming&#xA;command has completed." />
+      <field name="RXMSG_INT_EN" bit="29" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Peripheral Message Received enable. Enables&#xA;the generation of a command interrupt when an Upstream Peripheral Message is recieved and valid to Read." />
+      <field name="RXOOB_INT_EN" bit="30" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. OOB Message Received enable. Enables the&#xA;generation of a command interrupt when an Upstream OOB Message is recieved and valid to Read." />
+      <field name="FLASH_REQ_INT_EN" bit="31" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. Flash Request Received enable. Enables&#xA;the generation of a command interrupt when an Upstream Flash Request is recieved and valid to Read." />
+    </register>
+    <register name="SLAVE0_INT_STS" type="mmio" bar="ESPIBAR" offset="0x70" size="4" desc="SLAVE0_INT_STS Register">
+      <field name="BUS_ERR_INT" bit="0" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Timing error not detected. 1=eSPI Bus timing error&#xA;detected. eSPI Bus Timing error status. Set when eSPI link block detect Slave dosen't drive 1 after response CRC&#xA;and before CS# is de-asserted." />
+      <field name="WAIT_TIMEOUT_INT" bit="1" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Timer timeout has not occured. 1=Timer timeout&#xA;has occured. eSPI Bus Wait State Intersection maximum out status. eSPI Wait State timer timeout. Set when the&#xA;Slave inserts more Wait States than the counter specified in eSPI Global Control and Status Register0." />
+      <field name="CRC_ERR_INT" bit="2" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=CRC Error not detected. 1=CRC Error detected. CRC Error&#xA;detected status. CRC error detected on response phase. Set when a CRC Error is detected on the response phase." />
+      <field name="Reserved0" bit="3" size="1" desc="" />
+      <field name="NO_RSP_INT" bit="4" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=NO_RESPONSE not received. 1=NO_RESPONSE received&#xA;from the Slave. NO_RESPONSE Code Received status. Set when a NO_RESPONSE code is received from the&#xA;Slave." />
+      <field name="FATAL_ERR_INT" bit="5" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=FATAL_ERROR not received. 1=FATAL_ERROR&#xA;received from the Slave. FATAL_ERROR Response Code Received status. Set when a FATAL_ERROR&#xA;Response code is received from the Slave." />
+      <field name="NON_FATAL_ERR_INT" bit="6" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=NON_FATAL_ERROR not received.&#xA;1=NON_FATAL_ERROR received from the Slave. NON_FATAL_ERROR Response Code Received status. Set&#xA;when a NON_FATAL_ERROR Response code is received from the Slave." />
+      <field name="UNKNOWN_RSP_INT" bit="7" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Unrecognized Response not received.&#xA;1=Unrecognized Response received. Invalid Response Code Received status. Set when an Unrecognized&#xA;Response code is received." />
+      <field name="UNKNOWN_CT_INT" bit="8" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Unrecognized Cycle Type not received.&#xA;1=Unrecognized Cycle Type received. Invalid Cycle Type Received status. Set when an Unrecognized Cycle&#xA;Type is received." />
+      <field name="UNSUCSS_CPL_INT" bit="9" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Unsuccessful Completion Packet not received.&#xA;1=Unsuccessful Completion Packet received. Unsuccessful CPL Received status. Set when an Unsuccessful&#xA;Completion without data is received." />
+      <field name="ILLEGAL_TAG_INT" bit="10" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Illegal Response Tag not received. 1=Illegal Response&#xA;Tag received. Illegal Response Tag Received status. Set when an Illegal Response Tag is received." />
+      <field name="ILLEGAL_LEN_INT" bit="11" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Illegal Response Length not received. 1=Illegal&#xA;Response Length received. Illegal Response Length Received status. Set when an Illegal Response Length is&#xA;received from a Slave." />
+      <field name="RXOOB_OVERFLOW_INT" bit="12" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=OOB Packet Length not over 128 bytes.&#xA;1=OOB Packet Length over 128 bytes. OOB Packet Data Length over 128 bytes status." />
+      <field name="RXMSG_OVERFLOW_INT" bit="13" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Peripheral Message Data Length not over 32&#xA;bytes. 1=Peripheral Message Data Length over 32 bytes. Peripheral Message Data Length over 32 bytes status." />
+      <field name="RXFLASH_OVERFLOW_INT" bit="14" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Flash Packet Data Length not over 128&#xA;bytes. 1=Flash Packet Data Length over 128 bytes. Flash Packet Data Lenght over 128 bytes status." />
+      <field name="PROTOCOL_ERR_INT" bit="15" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Protocol Error has not occurred. 1=Protocol Error&#xA;has occurred. Protocol Error status." />
+      <field name="Reserved1" bit="16" size="2" desc="" />
+      <field name="MST_ABORT_INT" bit="18" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=eSPI not doing a Master Abort. 1=eSPI doing a Master&#xA;Abort. Alink Bus Master Abort status." />
+      <field name="WDG_TIMEOUT_INT" bit="19" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=eSPI Watchdog Timer Timeout has not occurred.&#xA;1=eSPI Watchdog Timer Timeout has occurred. Alink Bus Watchdog Timer Timeout status." />
+      <field name="Reserved2" bit="20" size="4" desc="" />
+      <field name="RXVW_GRP0_INT" bit="24" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Specified VW packet has not been received. 1=Virtual&#xA;Wire Index Group0 register specified VW packet has been received. Virtual Wire Index Group0 Received status." />
+      <field name="RXVW_GRP1_INT" bit="25" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Specified VW packet has not been received. 1=Virtual&#xA;Wire Index Group1 register specified VW packet has been received. Virtual Wire Index Group1 Received status." />
+      <field name="RXVW_GRP2_INT" bit="26" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Specified VW packet has not been received. 1=Virtual&#xA;Wire Index Group2 register specified VW packet has been received. Virtual Wire Index Group2 Received status." />
+      <field name="RXVW_GRP3_INT" bit="27" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Specified VW packet has not been received. 1=Virtual&#xA;Wire Index Group3 register specified VW packet has been received. Virtual Wire Index Group3 Received status." />
+      <field name="DNCMD_INT" bit="28" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Downstream Register Command not complete.&#xA;1=Downstream Register Command complete. Downstream Register Command Complete status. When once set&#xA;to 1, software can program the next command or get the data." />
+      <field name="RXMSG_INT" bit="29" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Upstream Peripheral Message not received. 1=Upstream&#xA;Peripheral Message has been received. Peripheral Message Recieved status. Upstream Peripheral Message has&#xA;been received and is valid to Read." />
+      <field name="RXOOB_INT" bit="30" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Upstream OOB Message not received. 1=Upstream OOB&#xA;Message has been received. OOB Message Recieved status. Upstream OOB Message has been received and is&#xA;valid to Read." />
+      <field name="FLASH_REQ_INT" bit="31" size="1" desc="Read,Write-1-to-clear. Reset: 0. 0=Upstream Flash Request not received. 1=Upstream Flash&#xA;Request has been received. Flash Request Recieved status. Upstream Flash Request has been received and is valid&#xA;to Read." />
+    </register>
+    <register name="SLAVE0_RXMSG_HDR0" type="mmio" bar="ESPIBAR" offset="0x74" size="4" desc="SLAVE0_RXMSG_HDR0 Register">
+      <field name="CYCLETYPE" bit="0" size="8" desc="Read-only. Reset: 00h. CycleType[7:0] for Periperal Msg/MsgD." />
+      <field name="BYTE1" bit="8" size="8" desc="Read-only. Reset: 00h. Bits[15:12]: Tag, Bits[11:8]: Length[11:8]." />
+      <field name="BYTE2" bit="16" size="8" desc="Read-only. Reset: 00h. Received Periperal Message Length[7:0]." />
+      <field name="BYTE3" bit="24" size="8" desc="Read-only. Reset: 00h. Received Periperal Message code." />
+    </register>
+    <register name="SLAVE0_RXMSG_HDR1" type="mmio" bar="ESPIBAR" offset="0x78" size="4" desc="SLAVE0_RXMSG_HDR1 Register">
+      <field name="SPECIFIC_BYTE0" bit="0" size="8" desc="Read-only. Reset: 00h. Periperal Message Specific Byte0." />
+      <field name="SPECIFIC_BYTE1" bit="8" size="8" desc="Read-only. Reset: 00h. Periperal Message Specific Byte1." />
+      <field name="SPECIFIC_BYTE2" bit="16" size="8" desc="Read-only. Reset: 00h. Periperal Message Specific Byte2." />
+      <field name="SPECIFIC_BYTE3" bit="24" size="8" desc="Read-only. Reset: 00h. Periperal Message Specific Byte3." />
+    </register>
+    <register name="SLAVE0_RXMSG_DATA_PORT" type="mmio" bar="ESPIBAR" offset="0x7c" size="4" desc="SLAVE0_RXMSG_DATA_PORT Register">
+      <field name="RXMSG_DATA" bit="0" size="32" desc="Read-only. Reset: 0000_0000h. Receive message data." />
+    </register>
+    <register name="RESERVED_RXMSG_REG0" type="mmio" bar="ESPIBAR" offset="0x80" size="4" desc="RESERVED_RXMSG_REG0 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_RXMSG_REG1" type="mmio" bar="ESPIBAR" offset="0x84" size="4" desc="RESERVED_RXMSG_REG1 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_RXMSG_REG2" type="mmio" bar="ESPIBAR" offset="0x88" size="4" desc="RESERVED_RXMSG_REG2 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_RXMSG_REG3" type="mmio" bar="ESPIBAR" offset="0x8c" size="4" desc="RESERVED_RXMSG_REG3 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_RXMSG_REG4" type="mmio" bar="ESPIBAR" offset="0x90" size="4" desc="RESERVED_RXMSG_REG4 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_RXMSG_REG5" type="mmio" bar="ESPIBAR" offset="0x94" size="4" desc="RESERVED_RXMSG_REG5 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="RESERVED_RXMSG_REG6" type="mmio" bar="ESPIBAR" offset="0x98" size="4" desc="RESERVED_RXMSG_REG6 Register">
+      <field name="Reserved" bit="0" size="32" desc="" />
+    </register>
+    <register name="SLAVE0_RXVW" type="mmio" bar="ESPIBAR" offset="0x9c" size="4" desc="SLAVE0_RXVW Register">
+      <field name="IRQ_SEL" bit="0" size="5" desc="Read-write. Reset: 00h. This field determines the Slave[N] Received Virtual Wires Register bits[7:5]&#xA;output's IRQ status.&#xA;ValidValues:&#xA;Value  Description&#xA;00h    IRQ0&#xA;01h    IRQ1&#xA;02h    IRQ2&#xA;16h-03h  IRQ&lt;VALUE&gt;&#xA;17h    IRQ23&#xA;1Fh-18h  Reserved." />
+      <field name="IRQ_STS" bit="5" size="3" desc="Read-only. Reset: 0h. IRQ status specified by IRQ selection.&#xA;ValidValues:&#xA;Value  Description&#xA;0h    IRQ keep 0 unchanged.&#xA;1h    IRQ keep 1 unchanged.&#xA;2h    IRQ changed from 1 to 0 (Clear).&#xA;3h    IRQ changed from 0 to 1 (Set).&#xA;4h    IRQ changed from 0-&gt;1-&gt;0 (High pulse).&#xA;5h    IRQ changed from 1-&gt;0-&gt;1 (Low pulse).&#xA;6h    IRQ changed from 1-&gt;1-&gt;0 or 1-&gt;0-&gt;0 or 0-&gt;0-&gt;0.&#xA;7h    IRQ changed from 0-&gt;0-&gt;1 or 0-&gt;1-&gt;1 or 1-&gt;1-&gt;1." />
+      <field name="OOB_RST_ACK" bit="8" size="1" desc="Read-only. Reset: 0. 0=OOB_RST_ACK not acknowledged. 1=OOB_RST_ACK&#xA;acknowledged. OOB Reset acknowledge. Sent by the Slave to acknowledge the recieved OOB_RST_ACK virtual&#xA;wire from the Host." />
+      <field name="Reserved0" bit="9" size="1" desc="" />
+      <field name="WAKE_B" bit="10" size="1" desc="Read-only. Reset: 1. 0=No effect. 1=Wake the Host. To wake the Host from Slave[x] on any evernt&#xA;(WAKE#)." />
+      <field name="PME_B" bit="11" size="1" desc="Read-only. Reset: 1. 0=No event. 1=Power Management Event occurred. PCI Power Management&#xA;Event (PME#). Shared by multiple eSPI." />
+      <field name="SLAVE_BOOT_LOAD_DONE" bit="12" size="1" desc="Read-only. Reset: 0. 0=No event. 1=Slave Boot Load done. Slave Boot Load&#xA;done. Sent upon completed boot process, as indication to eSPI Master to continue with the G3 to S0 exit." />
+      <field name="ERROR_FATAL" bit="13" size="1" desc="Read-only. Reset: 0. 0=No fatal error. 1=Fatal error detected. Fatal error is detected, not due to&#xA;eSPI transaction on the bus. NOTE: Fatal error due to transaction on the eSPI bus will be signaled through the&#xA;Response (RSP) phase." />
+      <field name="ERROR_NONFATAL" bit="14" size="1" desc="Read-only. Reset: 0. 0=No non-fatal error. 1=Non-Fatal error detected. Non-Fatal error is&#xA;detected, not due to eSPI transaction on the bus. NOTE: Non-Fatal error due to transaction on the eSPI bus will&#xA;be signaled through the Response (RSP) phase." />
+      <field name="SLAVE_BOOT_LOAD_STS" bit="15" size="1" desc="Read-only. Reset: 0. 0=The boot image is corrupted, incomplete or otherwise&#xA;unusable. 1=The boot code load was successful and that the integrity of the image is intact, or the boot code load&#xA;from the Master attaced flash is not required. Slave boot load status. Sent upon completion of the Slave boot load&#xA;from the Master attached flash. NOTE: The Slave_Boot_Load_Status must be sent in either the same or a&#xA;previous virtual wire message as the Slave_Boot_Load_Done." />
+      <field name="SCI_B" bit="16" size="1" desc="Read-only. Reset: 1. 0=No interrupt. 1=System Controller Interrupt sent. System Controller Interrupt&#xA;(SCI#). Sent as a general purpose alert resulting in an ACPI method being invoked by the OS." />
+      <field name="SMI_B" bit="17" size="1" desc="Read-only. Reset: 1. 0=No interrupt. 1=System Management Interrupt sent. System Management&#xA;Interrupt (SMI#). Sent as a general purpose alert resulting in an SMI code being invoked by the BIOS." />
+      <field name="RCIN_B" bit="18" size="1" desc="Read-only. Reset: 1. 0=No INIT. 1=INIT sent. Reset CPU INIT (RCIN#). Sent to request a CPU reset&#xA;on behalf of the Keyboard controller." />
+      <field name="HOST_RST_ACK" bit="19" size="1" desc="Read-only. Reset: 0. 0=No acknowledge sent. 1=Acknowledge sent. Host Reset&#xA;Acknowledge (HOST_RST_ACK). Sent by the Slave to acknowledge it received the HOST_RST_WARN virtual&#xA;wire." />
+      <field name="Reserved1" bit="20" size="12" desc="" />
+    </register>
+    <register name="SLAVE0_RXVW_DATA" type="mmio" bar="ESPIBAR" offset="0xa0" size="4" desc="SLAVE0_RXVW_DATA Register">
+      <field name="GRP0" bit="0" size="8" desc="Read-only. Reset: 00h. Group0 Virtual Wire Data Register. When&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_MISC_CNTL[GRP0_EN] == 1, eSPI Master will check each received VW&#xA;Index. If the received Index matches with FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP0], eSPI Master will&#xA;update this field with the new received value." />
+      <field name="GRP1" bit="8" size="8" desc="Read-only. Reset: 00h. Group1 Virtual Wire Data Register. When&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_MISC_CNTL[GRP1_EN] == 1, eSPI Master will check each received VW&#xA;Index. If the received Index matches with FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP1], eSPI Master will&#xA;update this field with the new received value." />
+      <field name="GRP2" bit="16" size="8" desc="Read-only. Reset: 00h. Group2 Virtual Wire Data Register. When&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_MISC_CNTL[GRP2_EN] == 1, eSPI Master will check each received VW&#xA;Index. If the received Index matches with FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP2], eSPI Master will&#xA;update this field with the new received value." />
+      <field name="GRP3" bit="24" size="8" desc="Read-only. Reset: 00h. Group3 Virtual Wire Data Register. When&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_MISC_CNTL[GRP3_EN] == 1, eSPI Master will check each received VW&#xA;Index. If the received Index matches with FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP3], eSPI Master will&#xA;update this field with the new received value." />
+    </register>
+    <register name="SLAVE0_RXVW_INDEX" type="mmio" bar="ESPIBAR" offset="0xa4" size="4" desc="SLAVE0_RXVW_INDEX Register">
+      <field name="GRP0" bit="0" size="8" desc="Read-write. Reset: 00h. Group0 Virtual Wire Index selection." />
+      <field name="GRP1" bit="8" size="8" desc="Read-write. Reset: 00h. Group1 Virtual Wire Index selection." />
+      <field name="GRP2" bit="16" size="8" desc="Read-write. Reset: 00h. Group2 Virtual Wire Index selection." />
+      <field name="GRP3" bit="24" size="8" desc="Read-write. Reset: 00h. Group3 Virtual Wire Index selection." />
+    </register>
+    <register name="SLAVE0_RXVW_MISC_CNTL" type="mmio" bar="ESPIBAR" offset="0xa8" size="4" desc="SLAVE0_RXVW_MISC_CNTL Register">
+      <field name="GRP0_EN" bit="0" size="1" desc="Read-write. Reset: 0. 0=Don't check the received Index. 1=Check the received Index. Group0 enable.&#xA;When set, VW channel will check the received Index. If Index is same as&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP0]; VW will store the Data into&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_DATA[GRP0]." />
+      <field name="GRP1_EN" bit="1" size="1" desc="Read-write. Reset: 0. 0=Don't check the received Index. 1=Check the received Index. Group1 enable.&#xA;When set, VW channel will check the received Index. If Index is same as&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP1]; VW will store the Data into&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_DATA[GRP1]." />
+      <field name="GRP2_EN" bit="2" size="1" desc="Read-write. Reset: 0. 0=Don't check the received Index. 1=Check the received Index. Group2 enable.&#xA;When set, VW channel will check the received Index. If Index is same as&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP2]; VW will store the Data into&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_DATA[GRP2]." />
+      <field name="GRP3_EN" bit="3" size="1" desc="Read-write. Reset: 0. 0=Don't check the received Index. 1=Check the received Index. Group3 enable.&#xA;When set, VW channel will check the received Index. If Index is same as&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_INDEX[GRP3]; VW will store the Data into&#xA;FCH::ITF::ESPI::SLAVE0_RXVW_DATA[GRP3]." />
+      <field name="SUS_STAT_VWEN" bit="4" size="1" desc="Read-write. Reset: 0. 0=Disable. 1=Enable. SUS_STAT# enable. Hardware sends Virtual&#xA;Wire packet when SUS_STAT# changes." />
+      <field name="Reserved" bit="5" size="3" desc="" />
+      <field name="IRQ0_MASK" bit="8" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ0 will be sent to the ACPI. 1=Masked: IRQ0 will not be&#xA;sent to the ACPI. When set, IRQ0 received from a Virtual Wire packet will be masked, and eSPI_IRQ0 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ1_MASK" bit="9" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ1 will be sent to the ACPI. 1=Masked: IRQ1 will not be&#xA;sent to the ACPI. When set, IRQ1 received from a Virtual Wire packet will be masked, and eSPI_IRQ1 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ2_MASK" bit="10" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ2 will be sent to the ACPI. 1=Masked: IRQ2 will not be&#xA;sent to the ACPI. When set, IRQ2 received from a Virtual Wire packet will be masked, and eSPI_IRQ2 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ3_MASK" bit="11" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ3 will be sent to the ACPI. 1=Masked: IRQ3 will not be&#xA;sent to the ACPI. When set, IRQ3 received from a Virtual Wire packet will be masked, and eSPI_IRQ3 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ4_MASK" bit="12" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ4 will be sent to the ACPI. 1=Masked: IRQ4 will not be&#xA;sent to the ACPI. When set, IRQ4 received from a Virtual Wire packet will be masked, and eSPI_IRQ4 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ5_MASK" bit="13" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ5 will be sent to the ACPI. 1=Masked: IRQ5 will not be&#xA;sent to the ACPI. When set, IRQ5 received from a Virtual Wire packet will be masked, and eSPI_IRQ5 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ6_MASK" bit="14" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ6 will be sent to the ACPI. 1=Masked: IRQ6 will not be&#xA;sent to the ACPI. When set, IRQ6 received from a Virtual Wire packet will be masked, and eSPI_IRQ6 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ7_MASK" bit="15" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ7 will be sent to the ACPI. 1=Masked: IRQ7 will not be&#xA;sent to the ACPI. When set, IRQ7 received from a Virtual Wire packet will be masked, and eSPI_IRQ7 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ8_MASK" bit="16" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ8 will be sent to the ACPI. 1=Masked: IRQ8 will not be&#xA;sent to the ACPI. When set, IRQ8 received from a Virtual Wire packet will be masked, and eSPI_IRQ8 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ9_MASK" bit="17" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ9 will be sent to the ACPI. 1=Masked: IRQ9 will not be&#xA;sent to the ACPI. When set, IRQ9 received from a Virtual Wire packet will be masked, and eSPI_IRQ9 will not&#xA;be sent to the ACPI." />
+      <field name="IRQ10_MASK" bit="18" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ10 will be sent to the ACPI. 1=Masked: IRQ10 will not&#xA;be sent to the ACPI. When set, IRQ10 received from a Virtual Wire packet will be masked, and eSPI_IRQ10 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ11_MASK" bit="19" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ11 will be sent to the ACPI. 1=Masked: IRQ11 will not&#xA;be sent to the ACPI. When set, IRQ11 received from a Virtual Wire packet will be masked, and eSPI_IRQ11 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ12_MASK" bit="20" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ12 will be sent to the ACPI. 1=Masked: IRQ12 will not&#xA;be sent to the ACPI. When set, IRQ12 received from a Virtual Wire packet will be masked, and eSPI_IRQ12 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ13_MASK" bit="21" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ13 will be sent to the ACPI. 1=Masked: IRQ13 will not&#xA;be sent to the ACPI. When set, IRQ13 received from a Virtual Wire packet will be masked, and eSPI_IRQ13 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ14_MASK" bit="22" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ14 will be sent to the ACPI. 1=Masked: IRQ14 will not&#xA;be sent to the ACPI. When set, IRQ14 received from a Virtual Wire packet will be masked, and eSPI_IRQ14 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ15_MASK" bit="23" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ15 will be sent to the ACPI. 1=Masked: IRQ15 will not&#xA;be sent to the ACPI. When set, IRQ15 received from a Virtual Wire packet will be masked, and eSPI_IRQ15 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ16_MASK" bit="24" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ16 will be sent to the ACPI. 1=Masked: IRQ16 will not&#xA;be sent to the ACPI. When set, IRQ16 received from a Virtual Wire packet will be masked, and eSPI_IRQ16 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ17_MASK" bit="25" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ17 will be sent to the ACPI. 1=Masked: IRQ17 will not&#xA;be sent to the ACPI. When set, IRQ17 received from a Virtual Wire packet will be masked, and eSPI_IRQ17 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ18_MASK" bit="26" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ18 will be sent to the ACPI. 1=Masked: IRQ18 will not&#xA;be sent to the ACPI. When set, IRQ18 received from a Virtual Wire packet will be masked, and eSPI_IRQ18 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ19_MASK" bit="27" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ19 will be sent to the ACPI. 1=Masked: IRQ19 will not&#xA;be sent to the ACPI. When set, IRQ19 received from a Virtual Wire packet will be masked, and eSPI_IRQ19 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ20_MASK" bit="28" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ20 will be sent to the ACPI. 1=Masked: IRQ20 will not&#xA;be sent to the ACPI. When set, IRQ20 received from a Virtual Wire packet will be masked, and eSPI_IRQ20 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ21_MASK" bit="29" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ21 will be sent to the ACPI. 1=Masked: IRQ21 will not&#xA;be sent to the ACPI. When set, IRQ21 received from a Virtual Wire packet will be masked, and eSPI_IRQ21 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ22_MASK" bit="30" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ22 will be sent to the ACPI. 1=Masked: IRQ22 will not&#xA;be sent to the ACPI. When set, IRQ22 received from a Virtual Wire packet will be masked, and eSPI_IRQ22 will&#xA;not be sent to the ACPI." />
+      <field name="IRQ23_MASK" bit="31" size="1" desc="Read-write. Reset: 0. 0=Unmasked: IRQ23 will be sent to the ACPI. 1=Masked: IRQ23 will not&#xA;be sent to the ACPI. When set, IRQ23 received from a Virtual Wire packet will be masked, and eSPI_IRQ23 will&#xA;not be sent to the ACPI." />
+    </register>
+    <register name="SLAVE0_RXVW_POLARITY" type="mmio" bar="ESPIBAR" offset="0xac" size="4" desc="SLAVE0_RXVW_POLARITY Register">
+      <field name="IRQ0_POLARITY" bit="0" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ0 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ1_POLARITY" bit="1" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ1 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ2_POLARITY" bit="2" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ2 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ3_POLARITY" bit="3" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ3 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ4_POLARITY" bit="4" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ4 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ5_POLARITY" bit="5" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ5 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ6_POLARITY" bit="6" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ6 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ7_POLARITY" bit="7" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ7 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ8_POLARITY" bit="8" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ8 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ9_POLARITY" bit="9" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ9 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ10_POLARITY" bit="10" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ10 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ11_POLARITY" bit="11" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ11 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ12_POLARITY" bit="12" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ12 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ13_POLARITY" bit="13" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ13 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ14_POLARITY" bit="14" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ14 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ15_POLARITY" bit="15" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ15 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ16_POLARITY" bit="16" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ16 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ17_POLARITY" bit="17" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ17 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ18_POLARITY" bit="18" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ18 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ19_POLARITY" bit="19" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ19 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ20_POLARITY" bit="20" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ20 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ21_POLARITY" bit="21" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ21 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ22_POLARITY" bit="22" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ22 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="IRQ23_POLARITY" bit="23" size="1" desc="Read-write. Reset: 0. 0=Invert VW IRQ data. 1=Don't invert VW IRQ packet data. If the&#xA;Slave IRQ23 is low active level interrupt or high active edge interrupt, no need to invert VW IRQ data, this bit&#xA;must be set. If the Slave IRQ is high active level interrupt or low active edge interrupt, it needs to invert VW IRQ&#xA;data and this bit must be cleared." />
+      <field name="Reserved" bit="24" size="8" desc="" />
+    </register>
+  
     <!-- TODO: add other SPI registers if necessary. -->
 
     <!-- System Management Network (SMN) Registers -->
